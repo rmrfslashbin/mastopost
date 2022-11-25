@@ -1,0 +1,7 @@
+lastupdate: "/Users/myuser/Library/Application Support/mastopost/lastupdate.gob"
+url: https://example.com/feed/
+clientid: mastodon_client_id
+clientsec: mastodon_client_secret
+token: mastodon_access_token
+instance: https://example.com
+
