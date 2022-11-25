@@ -32,51 +32,50 @@ var addCmd = &cobra.Command{
 	},
 }
 
+var addCmdViper = viper.New()
+
 func init() {
-	log, err := zap.NewProduction()
-	if err != nil {
-		panic(err)
-	}
-	defer log.Sync()
+	initViper(addCmdViper)
+
 	rootCmd.AddCommand(addCmd)
 
-	addCmd.PersistentFlags().String("url", "", "URL of the RSS feed to parse")
-	addCmd.PersistentFlags().String("instance", "", "Mastodon instance to post to")
-	addCmd.PersistentFlags().String("clientid", "", "Mastodon app client id")
-	addCmd.PersistentFlags().String("clientsec", "", "Mastodon app client secret")
-	addCmd.PersistentFlags().String("token", "", "Mastodon app client access token")
-	addCmd.PersistentFlags().String("feedname", "", "Feed name")
-	addCmd.PersistentFlags().String("cron", "", "Cron configuration for posting")
-	addCmd.PersistentFlags().String("awsprofile", "default", "AWS profile to use for credentials")
-	addCmd.PersistentFlags().String("awsregion", "us-east-1", "AWS profile to use for credentials")
-	addCmd.PersistentFlags().Bool("confirm", false, "Confirm adding new config")
+	addCmd.Flags().String("url", "", "URL of the RSS feed to parse")
+	addCmd.Flags().String("instance", "", "Mastodon instance to post to")
+	addCmd.Flags().String("clientid", "", "Mastodon app client id")
+	addCmd.Flags().String("clientsec", "", "Mastodon app client secret")
+	addCmd.Flags().String("token", "", "Mastodon app client access token")
+	addCmd.Flags().String("feedname", "", "Feed name")
+	addCmd.Flags().String("cron", "", "Cron configuration for posting")
+	addCmd.Flags().String("awsprofile", "default", "AWS profile to use for credentials")
+	addCmd.Flags().String("awsregion", "us-east-1", "AWS profile to use for credentials")
+	addCmd.Flags().Bool("confirm", false, "Confirm adding new config")
 
-	addCmd.MarkPersistentFlagRequired("url")
-	addCmd.MarkPersistentFlagRequired("instance")
-	addCmd.MarkPersistentFlagRequired("clientid")
-	addCmd.MarkPersistentFlagRequired("clientsec")
-	addCmd.MarkPersistentFlagRequired("token")
-	addCmd.MarkPersistentFlagRequired("feedname")
-	addCmd.MarkPersistentFlagRequired("cron")
+	addCmd.MarkFlagRequired("url")
+	addCmd.MarkFlagRequired("instance")
+	addCmd.MarkFlagRequired("clientid")
+	addCmd.MarkFlagRequired("clientsec")
+	addCmd.MarkFlagRequired("token")
+	addCmd.MarkFlagRequired("feedname")
+	addCmd.MarkFlagRequired("cron")
 
-	viper.BindPFlags(addCmd.PersistentFlags())
+	addCmdViper.BindPFlags(addCmd.Flags())
 }
 
 func addNewConfig() error {
-	fmt.Printf("feedname: %s\n", viper.GetString("feedname"))
+	fmt.Printf("feedname: %s\n", addCmdViper.GetString("feedname"))
 	config := Config{
-		URL:        viper.GetString("url"),
-		Instance:   viper.GetString("instance"),
-		ClientID:   viper.GetString("clientid"),
-		ClientSec:  viper.GetString("clientsec"),
-		Token:      viper.GetString("token"),
-		Name:       strcase.ToCamel(viper.GetString("feedname")),
-		Cron:       viper.GetString("cron"),
-		AWSProfile: viper.GetString("awsprofile"),
-		AWSRegion:  viper.GetString("awsregion"),
+		URL:        addCmdViper.GetString("url"),
+		Instance:   addCmdViper.GetString("instance"),
+		ClientID:   addCmdViper.GetString("clientid"),
+		ClientSec:  addCmdViper.GetString("clientsec"),
+		Token:      addCmdViper.GetString("token"),
+		Name:       strcase.ToCamel(addCmdViper.GetString("feedname")),
+		Cron:       addCmdViper.GetString("cron"),
+		AWSProfile: addCmdViper.GetString("awsprofile"),
+		AWSRegion:  addCmdViper.GetString("awsregion"),
 	}
 
-	if !viper.GetBool("confirm") {
+	if !addCmdViper.GetBool("confirm") {
 		fmt.Println("Confirm adding new config:")
 		fmt.Printf("Feed name:               %s\n", config.Name)
 		fmt.Printf("RSS feed URL:            %s\n", config.URL)

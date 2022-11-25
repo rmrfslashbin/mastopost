@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/iancoleman/strcase"
 	"github.com/rmrfslashbin/mastopost/pkg/ssmparams"
 	"github.com/spf13/cobra"
@@ -30,12 +29,11 @@ var deleteCmd = &cobra.Command{
 	},
 }
 
+var deleteCmdViper = viper.New()
+
 func init() {
-	log, err := zap.NewProduction()
-	if err != nil {
-		panic(err)
-	}
-	defer log.Sync()
+	initViper(deleteCmdViper)
+
 	rootCmd.AddCommand(deleteCmd)
 
 	deleteCmd.Flags().String("feedname", "", "Feed name")
@@ -44,16 +42,14 @@ func init() {
 	deleteCmd.Flags().Bool("confirm", false, "Confirm delete")
 
 	deleteCmd.MarkFlagRequired("feedname")
-	viper.BindPFlags(deleteCmd.Flags())
-	spew.Dump(deleteCmd.Flags())
+	deleteCmdViper.BindPFlags(deleteCmd.Flags())
 }
 
 func deleteConfigs() error {
-	spew.Dump(viper.AllSettings())
 	params, err := ssmparams.New(
 		ssmparams.WithLogger(log),
-		ssmparams.WithProfile(viper.GetString("awsprofile")),
-		ssmparams.WithRegion(viper.GetString("awsregion")),
+		ssmparams.WithProfile(deleteCmdViper.GetString("awsprofile")),
+		ssmparams.WithRegion(deleteCmdViper.GetString("awsregion")),
 	)
 	if err != nil {
 		return err
@@ -69,7 +65,7 @@ func deleteConfigs() error {
 		/mastopost/${feedname}/runtime/lastPublished
 	*/
 
-	path := "/mastopost/" + strcase.ToCamel(viper.GetString("feedname")) + "/"
+	path := "/mastopost/" + strcase.ToCamel(deleteCmdViper.GetString("feedname")) + "/"
 
 	var nextToken *string
 	var paths []string
@@ -96,7 +92,7 @@ func deleteConfigs() error {
 	}
 	fmt.Printf("Got %d parameters for path %s\n", len(paths), path)
 
-	if !viper.GetBool("confirm") {
+	if !deleteCmdViper.GetBool("confirm") {
 		fmt.Print("Confirm delete? (y/n): ")
 		var confirm string
 		fmt.Scanln(&confirm)

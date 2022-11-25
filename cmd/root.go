@@ -52,10 +52,15 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().String("feedname", "", "Feed name")
-	deleteCmd.PersistentFlags().String("awsprofile", "default", "AWS profile to use for credentials")
-	deleteCmd.PersistentFlags().String("awsregion", "us-east-1", "AWS profile to use for credentials")
-	deleteCmd.PersistentFlags().Bool("confirm", false, "Confirm delete")
+	log, err := zap.NewProduction()
+	if err != nil {
+		panic(err)
+	}
+	defer log.Sync()
 
-	viper.BindPFlags(rootCmd.PersistentFlags())
+	initViper(viper.GetViper())
+}
+
+func initViper(v *viper.Viper) {
+	v.AutomaticEnv()
 }

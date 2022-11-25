@@ -28,26 +28,25 @@ var listCmd = &cobra.Command{
 	},
 }
 
+var listCmdViper = viper.New()
+
 func init() {
-	log, err := zap.NewProduction()
-	if err != nil {
-		panic(err)
-	}
-	defer log.Sync()
+	initViper(listCmdViper)
+
 	rootCmd.AddCommand(listCmd)
 
-	listCmd.PersistentFlags().String("feedname", "", "Feed name")
-	listCmd.PersistentFlags().String("awsprofile", "default", "AWS profile to use for credentials")
-	listCmd.PersistentFlags().String("awsregion", "us-east-1", "AWS profile to use for credentials")
+	listCmd.Flags().String("feedname", "", "Feed name")
+	listCmd.Flags().String("awsprofile", "default", "AWS profile to use for credentials")
+	listCmd.Flags().String("awsregion", "us-east-1", "AWS profile to use for credentials")
 
-	viper.BindPFlags(listCmd.PersistentFlags())
+	listCmdViper.BindPFlags(listCmd.Flags())
 }
 
 func listConfigs() error {
 	params, err := ssmparams.New(
 		ssmparams.WithLogger(log),
-		ssmparams.WithProfile(viper.GetString("awsprofile")),
-		ssmparams.WithRegion(viper.GetString("awsregion")),
+		ssmparams.WithProfile(listCmdViper.GetString("awsprofile")),
+		ssmparams.WithRegion(listCmdViper.GetString("awsregion")),
 	)
 	if err != nil {
 		return err
@@ -64,8 +63,8 @@ func listConfigs() error {
 	*/
 
 	path := "/mastopost/"
-	if viper.GetString("feedname") != "" {
-		name := strcase.ToCamel(viper.GetString("feedname"))
+	if listCmdViper.GetString("feedname") != "" {
+		name := strcase.ToCamel(listCmdViper.GetString("feedname"))
 		path += name + "/"
 	}
 
