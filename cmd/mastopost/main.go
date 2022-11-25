@@ -2,16 +2,15 @@ package main
 
 import (
 	"encoding/gob"
-	"fmt"
 	"net/url"
 	"os"
 	"path"
 	"time"
 
-	"github.com/iancoleman/strcase"
 	"github.com/mattn/go-mastodon"
 	"github.com/rmrfslashbin/mastopost/pkg/mastoclient"
 	"github.com/rmrfslashbin/mastopost/pkg/rssfeed"
+	"github.com/rmrfslashbin/mastopost/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -211,7 +210,7 @@ func mastopost() error {
 
 		for _, item := range newItems {
 			// create a new post/toot
-			newPost, err := makePost(item)
+			newPost, err := utils.MakePost(item)
 			if err != nil {
 				return err
 			}
@@ -261,31 +260,4 @@ func mastopost() error {
 		}
 	}
 	return nil
-}
-
-// makePost formats the RSS item into a Mastodon post
-func makePost(item rssfeed.NewItems) (*mastodon.Toot, error) {
-	author := ""
-	hashtags := ""
-
-	if item.Author != nil {
-		if item.Author.Name != "" {
-			author = " by " + item.Author.Name
-		}
-		if item.Author.Email != "" {
-			author += " (" + item.Author.Email + ")"
-		}
-	}
-
-	if item.Categories != nil {
-		hashtags = "\n"
-		for _, cat := range item.Categories {
-			hashtags += " #" + strcase.ToCamel(cat)
-		}
-	}
-
-	newPost := &mastodon.Toot{
-		Status: fmt.Sprintf("%s%s\n\n%s\n\n%s\n\n%s", item.Title, author, item.Published, item.Link, hashtags),
-	}
-	return newPost, nil
 }
