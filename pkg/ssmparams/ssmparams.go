@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"go.uber.org/zap"
@@ -23,7 +24,7 @@ type SSMParamsConfig struct {
 	ssm     *ssm.Client
 }
 
-func NewSSMParams(opts ...func(*SSMParamsConfig)) (*SSMParamsConfig, error) {
+func New(opts ...func(*SSMParamsConfig)) (*SSMParamsConfig, error) {
 	cfg := &SSMParamsConfig{}
 
 	// apply the list of options to Config
@@ -51,19 +52,19 @@ func NewSSMParams(opts ...func(*SSMParamsConfig)) (*SSMParamsConfig, error) {
 	return cfg, nil
 }
 
-func SetLogger(logger *zap.Logger) SSMParamsOption {
+func WithLogger(logger *zap.Logger) SSMParamsOption {
 	return func(config *SSMParamsConfig) {
 		config.log = logger
 	}
 }
 
-func SetProfile(profile string) SSMParamsOption {
+func WithProfile(profile string) SSMParamsOption {
 	return func(config *SSMParamsConfig) {
 		config.profile = profile
 	}
 }
 
-func SetRegion(region string) SSMParamsOption {
+func WithRegion(region string) SSMParamsOption {
 	return func(config *SSMParamsConfig) {
 		config.region = region
 	}
@@ -90,13 +91,46 @@ func (config *SSMParamsConfig) GetParams(paramNames []string) (*SSMParamsOutput,
 	}, nil
 }
 
-func (config *SSMParamsConfig) PutParams(params *ssm.PutParameterInput) (*ssm.PutParameterOutput, error) {
+func (config *SSMParamsConfig) PutParam(params *ssm.PutParameterInput) (*ssm.PutParameterOutput, error) {
 	resp, err := config.ssm.PutParameter(context.TODO(), params)
 	if err != nil {
 		config.log.Error("error putting parameters",
 			zap.String("Action", "ssmparams::PutParameters"),
+			zap.String("error", err.Error()),
 			zap.Error(err))
 		return nil, err
 	}
+	return resp, nil
+}
+
+func (config *SSMParamsConfig) ListAllParams(path string, nextToken *string) (*ssm.GetParametersByPathOutput, error) {
+	resp, err := config.ssm.GetParametersByPath(context.TODO(), &ssm.GetParametersByPathInput{
+		Path:      aws.String(path),
+		Recursive: aws.Bool(true),
+		NextToken: nextToken,
+	})
+	if err != nil {
+		config.log.Error("error listing parameters",
+			zap.String("Action", "ssmparams::ListAllParams"),
+			zap.String("error", err.Error()),
+			zap.Error(err))
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (config *SSMParamsConfig) DeleteParams(paramNames []string) (*ssm.DeleteParametersOutput, error) {
+	resp, err := config.ssm.DeleteParameters(context.TODO(), &ssm.DeleteParametersInput{
+		Names: paramNames,
+	})
+	if err != nil {
+		config.log.Error("error deleting parameter",
+			zap.String("Action", "ssmparams::DeleteParam"),
+			zap.String("error", err.Error()),
+			zap.Error(err))
+		return nil, err
+	}
+
 	return resp, nil
 }

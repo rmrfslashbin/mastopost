@@ -1,21 +1,17 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/mattn/go-mastodon"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
+	"github.com/iancoleman/strcase"
+	"github.com/rmrfslashbin/mastopost/pkg/ssmparams"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-)
-
-var (
-	log    *zap.Logger
-	client *mastodon.Client
 )
 
 // addCmd represents the add command
@@ -49,10 +45,10 @@ func init() {
 	addCmd.PersistentFlags().String("clientid", "", "Mastodon app client id")
 	addCmd.PersistentFlags().String("clientsec", "", "Mastodon app client secret")
 	addCmd.PersistentFlags().String("token", "", "Mastodon app client access token")
-	addCmd.PersistentFlags().String("name", "", "App name")
+	addCmd.PersistentFlags().String("feedname", "", "Feed name")
 	addCmd.PersistentFlags().String("cron", "", "Cron configuration for posting")
-	addCmd.PersistentFlags().String("awsprofile", "default", "AWS profile to use for credentials (default: default)")
-	addCmd.PersistentFlags().String("awsregion", "us-east-1", "AWS profile to use for credentials (default: us-east-1")
+	addCmd.PersistentFlags().String("awsprofile", "default", "AWS profile to use for credentials")
+	addCmd.PersistentFlags().String("awsregion", "us-east-1", "AWS profile to use for credentials")
 	addCmd.PersistentFlags().Bool("confirm", false, "Confirm adding new config")
 
 	addCmd.MarkPersistentFlagRequired("url")
@@ -60,20 +56,21 @@ func init() {
 	addCmd.MarkPersistentFlagRequired("clientid")
 	addCmd.MarkPersistentFlagRequired("clientsec")
 	addCmd.MarkPersistentFlagRequired("token")
-	addCmd.MarkPersistentFlagRequired("name")
+	addCmd.MarkPersistentFlagRequired("feedname")
 	addCmd.MarkPersistentFlagRequired("cron")
 
 	viper.BindPFlags(addCmd.PersistentFlags())
 }
 
 func addNewConfig() error {
+	fmt.Printf("feedname: %s\n", viper.GetString("feedname"))
 	config := Config{
 		URL:        viper.GetString("url"),
 		Instance:   viper.GetString("instance"),
 		ClientID:   viper.GetString("clientid"),
 		ClientSec:  viper.GetString("clientsec"),
 		Token:      viper.GetString("token"),
-		Name:       viper.GetString("name"),
+		Name:       strcase.ToCamel(viper.GetString("feedname")),
 		Cron:       viper.GetString("cron"),
 		AWSProfile: viper.GetString("awsprofile"),
 		AWSRegion:  viper.GetString("awsregion"),
@@ -81,7 +78,7 @@ func addNewConfig() error {
 
 	if !viper.GetBool("confirm") {
 		fmt.Println("Confirm adding new config:")
-		fmt.Printf("App name:                %s\n", config.Name)
+		fmt.Printf("Feed name:               %s\n", config.Name)
 		fmt.Printf("RSS feed URL:            %s\n", config.URL)
 		fmt.Printf("Mastodon instance:       %s\n", config.Instance)
 		fmt.Printf("Mastodon client id:      %s\n", config.ClientID)
@@ -98,5 +95,81 @@ func addNewConfig() error {
 		}
 	}
 
+	params, err := ssmparams.New(
+		ssmparams.WithLogger(log),
+		ssmparams.WithProfile(config.AWSProfile),
+		ssmparams.WithRegion(config.AWSRegion),
+	)
+	if err != nil {
+		return err
+	}
+
+	/*
+		/mastopost/${feedname}/mastodon/instanceUrl
+		/mastopost/${feedname}/mastodon/clientId
+		/mastopost/${feedname}/mastodon/clientSecret
+		/mastopost/${feedname}/mastodon/accessToken
+		/mastopost/${feedname}/rss/feedUrl
+		/mastopost/${feedname}/runtime/lastUpdated
+		/mastopost/${feedname}/runtime/lastPublished
+	*/
+
+	var paramNames []*ssm.PutParameterInput
+
+	paramNames = append(paramNames, &ssm.PutParameterInput{
+		Name:      aws.String(fmt.Sprintf("/mastopost/%s/mastodon/instanceUrl", config.Name)),
+		Value:     aws.String(config.Instance),
+		Type:      types.ParameterTypeString,
+		Overwrite: aws.Bool(true),
+	})
+
+	paramNames = append(paramNames, &ssm.PutParameterInput{
+		Name:      aws.String(fmt.Sprintf("/mastopost/%s/mastodon/clientId", config.Name)),
+		Value:     aws.String(config.ClientID),
+		Type:      types.ParameterTypeString,
+		Overwrite: aws.Bool(true),
+	})
+
+	paramNames = append(paramNames, &ssm.PutParameterInput{
+		Name:      aws.String(fmt.Sprintf("/mastopost/%s/mastodon/clientSecret", config.Name)),
+		Value:     aws.String(config.ClientSec),
+		Type:      types.ParameterTypeString,
+		Overwrite: aws.Bool(true),
+	})
+
+	paramNames = append(paramNames, &ssm.PutParameterInput{
+		Name:      aws.String(fmt.Sprintf("/mastopost/%s/mastodon/accessToken", config.Name)),
+		Value:     aws.String(config.Token),
+		Type:      types.ParameterTypeString,
+		Overwrite: aws.Bool(true),
+	})
+
+	paramNames = append(paramNames, &ssm.PutParameterInput{
+		Name:      aws.String(fmt.Sprintf("/mastopost/%s/rss/feedUrl", config.Name)),
+		Value:     aws.String(config.URL),
+		Type:      types.ParameterTypeString,
+		Overwrite: aws.Bool(true),
+	})
+
+	paramNames = append(paramNames, &ssm.PutParameterInput{
+		Name:      aws.String(fmt.Sprintf("/mastopost/%s/runtime/lastUpdated", config.Name)),
+		Value:     aws.String("unset"),
+		Type:      types.ParameterTypeString,
+		Overwrite: aws.Bool(true),
+	})
+
+	paramNames = append(paramNames, &ssm.PutParameterInput{
+		Name:      aws.String(fmt.Sprintf("/mastopost/%s/runtime/lastPublished", config.Name)),
+		Value:     aws.String("unset"),
+		Type:      types.ParameterTypeString,
+		Overwrite: aws.Bool(true),
+	})
+
+	for _, param := range paramNames {
+		_, err := params.PutParam(param)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

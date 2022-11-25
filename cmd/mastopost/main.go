@@ -90,7 +90,7 @@ func init() {
 	rootCmd.MarkPersistentFlagRequired("feedname")
 
 	// Bind flags to viper
-	viper.BindPFlags(rootCmd.PersistentFlags())
+	//viper.BindPFlags(rootCmd.PersistentFlags())
 }
 
 // initConfig reads in config file and ENV variables if set.
