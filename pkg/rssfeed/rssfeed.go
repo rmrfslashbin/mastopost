@@ -205,8 +205,6 @@ func (c *Config) Parse() ([]NewItems, error) {
 			if item.PublishedParsed.After(lastPublished) {
 				lastPublished = *item.PublishedParsed
 			}
-		} else {
-			c.log.Info("Item is old")
 		}
 	}
 	if !lastPublished.IsZero() {

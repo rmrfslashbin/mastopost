@@ -8,7 +8,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/iancoleman/strcase"
 	"github.com/mattn/go-mastodon"
 	"github.com/rmrfslashbin/mastopost/pkg/mastoclient"
@@ -18,18 +17,21 @@ import (
 	"go.uber.org/zap"
 )
 
+// Bootstrap configs
 var (
 	log           *zap.Logger
 	cfgFile       string
 	homeConfigDir string
 )
 
+// FeedConfig is the configuration for a single RSS feed
 type FeedConfig struct {
 	FeedURL       string     `json:"feedurl"`
 	LastUpdated   *time.Time `json:"lastupdated"`
 	LastPublished *time.Time `json:"lastpublished"`
 }
 
+// Config is the configuration for all RSS feeds
 type Config struct {
 	Feeds map[string]FeedConfig `json:"feeds"`
 }
@@ -103,12 +105,10 @@ func init() {
 
 	// Bind flags to viper
 	viper.BindPFlags(rootCmd.PersistentFlags())
-	spew.Dump(viper.AllSettings())
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	fmt.Println("InitConfig")
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
@@ -126,10 +126,12 @@ func initConfig() {
 	viper.ReadInConfig()
 }
 
+// loadGOB loads the last update config data
 func loadGOB(gobFile string) (Config, error) {
 	var config Config
 	file, err := os.Open(gobFile)
 	if err != nil {
+		// if the file doesn't exist, return an empty config
 		if os.IsNotExist(err) {
 			return config, nil
 		}
@@ -145,6 +147,7 @@ func loadGOB(gobFile string) (Config, error) {
 	return config, nil
 }
 
+// saveGOB saves the last update config data
 func saveGOB(gobFile string, config Config) error {
 	file, err := os.Create(gobFile)
 	if err != nil {
@@ -161,8 +164,6 @@ func saveGOB(gobFile string, config Config) error {
 
 // mastopost is the main function
 func mastopost() error {
-	spew.Dump(viper.AllSettings())
-	fmt.Printf("Last update fime is %s\n", viper.GetString("lastupdate"))
 	config, err := loadGOB(viper.GetString("lastupdate"))
 	if err != nil {
 		return err
