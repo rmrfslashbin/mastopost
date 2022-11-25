@@ -55,19 +55,6 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-// main is the entry point
-func main() {
-	rootCmd.Execute()
-}
-
-// Execute the mastopost command
-func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
 // init is called before main
 func init() {
 	var err error
@@ -124,6 +111,19 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	viper.ReadInConfig()
+}
+
+// main is the entry point
+func main() {
+	rootCmd.Execute()
+}
+
+// Execute the mastopost command
+func Execute() {
+	err := rootCmd.Execute()
+	if err != nil {
+		os.Exit(1)
+	}
 }
 
 // loadGOB loads the last update config data
@@ -211,7 +211,7 @@ func mastopost() error {
 
 		for _, item := range newItems {
 			// create a new post/toot
-			newPost, err := MakePost(item)
+			newPost, err := makePost(item)
 			if err != nil {
 				return err
 			}
@@ -263,8 +263,8 @@ func mastopost() error {
 	return nil
 }
 
-// MakePost formats the RSS item into a Mastodon post
-func MakePost(item rssfeed.NewItems) (*mastodon.Toot, error) {
+// makePost formats the RSS item into a Mastodon post
+func makePost(item rssfeed.NewItems) (*mastodon.Toot, error) {
 	author := ""
 	hashtags := ""
 
