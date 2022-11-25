@@ -1,4 +1,4 @@
-#mastopost
+# mastopost
 Post RSS feeds to Mastodon
 
 ## Description
