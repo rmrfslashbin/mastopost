@@ -254,6 +254,7 @@ func mastopost() error {
 		status := <-ch
 		log.Info("posted to mastodon",
 			zap.Any("post ID", status),
+			zap.String("to instance", instanceUrl.String()),
 		)
 	}
 	close(ch)
