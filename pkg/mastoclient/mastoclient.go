@@ -9,7 +9,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// No instance error
 type NoInstance struct {
 	Err error
 	Msg string
@@ -163,8 +162,7 @@ func WithLogger(log *zap.Logger) Option {
 	}
 }
 
-// Post will post a slice of Mastodon posts/toots
-func (c *Config) Post(toots []*mastodon.Toot) ([]mastodon.ID, error) {
+func (c *Config) Post(toot *mastodon.Toot) (*mastodon.ID, error) {
 	// Check set up
 	if c.instance == nil {
 		return nil, &NoInstance{}
@@ -190,25 +188,11 @@ func (c *Config) Post(toots []*mastodon.Toot) ([]mastodon.ID, error) {
 		AccessToken:  c.token,
 	})
 
-	// Slice to hold the IDs of the toots
-	var ids []mastodon.ID
-
-	// Loop through the toots
-	for _, t := range toots {
-		// skip empty toots
-		if t == nil {
-			continue
-		}
-
-		// Post the toot
-		if status, err := client.PostStatus(context.Background(), t); err != nil {
-			fmt.Println(err)
-			return nil, &PostFailed{Err: err}
-		} else {
-			ids = append(ids, status.ID)
-		}
+	// Post the toot
+	if status, err := client.PostStatus(context.Background(), toot); err != nil {
+		fmt.Println(err)
+		return nil, err
+	} else {
+		return &status.ID, nil
 	}
-
-	// Return the IDs of the toots
-	return ids, nil
 }

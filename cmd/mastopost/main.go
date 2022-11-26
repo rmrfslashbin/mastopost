@@ -185,17 +185,11 @@ func mastopost() error {
 	feed, err := rssfeed.New(
 		rssfeed.WithLogger(log),
 		rssfeed.WithURL(feedUrl),
+		rssfeed.WithLastUpdated(feedData.LastUpdated),
+		rssfeed.WithLastPublished(feedData.LastPublished),
 	)
 	if err != nil {
 		return err
-	}
-
-	// Set last updated and last published times, if provided
-	if feedData.LastUpdated != nil {
-		feed.SetLastUpdated(feedData.LastUpdated)
-	}
-	if feedData.LastPublished != nil {
-		feed.SetLastPublished(feedData.LastPublished)
 	}
 
 	// Get the new items
@@ -204,60 +198,74 @@ func mastopost() error {
 		return err
 	}
 
-	// Only run if there's new items
-	if len(newItems) > 0 {
-		posts := make([]*mastodon.Toot, len(newItems))
+	// Log some info
+	log.Info("last update", zap.String("lastupdate", feed.GetLastUpdated().String()))
+	log.Info("last published", zap.String("lastpublished", feed.GetLastPublished().String()))
 
-		for _, item := range newItems {
-			// create a new post/toot
-			newPost, err := utils.MakePost(item)
-			if err != nil {
-				return err
-			}
-			posts = append(posts, newPost)
-		}
-
-		// Log some info
-		log.Info("last update", zap.String("lastupdate", feed.GetLastUpdated().String()))
-		log.Info("last published", zap.String("lastpublished", feed.GetLastPublished().String()))
-
-		// Are we doing a dry run?
-		if viper.GetBool("dryrun") {
-			log.Info("dryrun mode. not posting to Mastodon")
-			return nil
-		}
-
-		// Set up the Mastodon client
-		instanceUrl, err := url.Parse(viper.GetString("instance"))
-		if err != nil {
-			return err
-		}
-		client, err := mastoclient.New(
-			mastoclient.WithLogger(log),
-			mastoclient.WithInstance(instanceUrl),
-			mastoclient.WithClientID(viper.GetString("clientid")),
-			mastoclient.WithClientSecret(viper.GetString("clientsec")),
-			mastoclient.WithToken(viper.GetString("token")),
-		)
-		if err != nil {
-			return err
-		}
-
-		// Post the new items
-		ids, err := client.Post(posts)
-		if err != nil {
-			return err
-		}
-		log.Info("posted to Mastodon", zap.Any("ids", ids))
-
-		// Update state/config
-		feedData.LastPublished = feed.GetLastPublished()
-		feedData.LastUpdated = feed.GetLastUpdated()
-		config.Feeds[viper.GetString("feedname")] = feedData
-		err = saveGOB(viper.GetString("lastupdate"), config)
-		if err != nil {
-			return err
-		}
+	// Bail out if there's nothing new
+	if len(newItems) < 1 {
+		log.Info("no new posts")
+		return nil
 	}
+
+	// Are we doing a dry run?
+	if viper.GetBool("dryrun") {
+		log.Info("dryrun mode. not posting to Mastodon")
+		return nil
+	}
+
+	// Set up the Mastodon client
+	instanceUrl, err := url.Parse(viper.GetString("instance"))
+	if err != nil {
+		return err
+	}
+	client, err := mastoclient.New(
+		mastoclient.WithLogger(log),
+		mastoclient.WithInstance(instanceUrl),
+		mastoclient.WithClientID(viper.GetString("clientid")),
+		mastoclient.WithClientSecret(viper.GetString("clientsec")),
+		mastoclient.WithToken(viper.GetString("token")),
+	)
+	if err != nil {
+		return err
+	}
+
+	ch := make(chan *mastodon.ID)
+
+	for _, item := range newItems {
+		// create a new post/toot
+		newPost, err := utils.MakePost(item)
+		if err != nil {
+			return err
+		}
+		go func(newPost *mastodon.Toot) {
+			id, err := client.Post(newPost)
+			if err != nil {
+				log.Error("Error posting toot",
+					zap.String("Error", err.Error()),
+					zap.Error(err),
+				)
+			}
+			ch <- id
+		}(newPost)
+	}
+
+	for i := 0; i < len(newItems); i++ {
+		status := <-ch
+		log.Info("posted to mastodon",
+			zap.Any("post ID", status),
+		)
+	}
+	close(ch)
+
+	// Update state/config
+	feedData.LastPublished = feed.GetLastPublished()
+	feedData.LastUpdated = feed.GetLastUpdated()
+	config.Feeds[viper.GetString("feedname")] = feedData
+	err = saveGOB(viper.GetString("lastupdate"), config)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

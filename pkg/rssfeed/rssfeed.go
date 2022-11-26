@@ -116,9 +116,9 @@ func WithURL(u *url.URL) Option {
 }
 
 // WithLastUpdated sets the last updated time for the RSS feed
-func WithLastUpdated(t time.Time) Option {
+func WithLastUpdated(t *time.Time) Option {
 	return func(c *Config) {
-		c.lastUpdated = &t
+		c.lastUpdated = t
 	}
 }
 
@@ -130,9 +130,9 @@ func WithLogger(l *zap.Logger) Option {
 }
 
 // WithLastPublished sets the last published time for the RSS feed
-func WithLastPublished(t time.Time) Option {
+func WithLastPublished(t *time.Time) Option {
 	return func(c *Config) {
-		c.lastPublished = &t
+		c.lastPublished = t
 	}
 }
 
