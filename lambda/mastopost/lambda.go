@@ -10,6 +10,10 @@ import (
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
+	"github.com/mattn/go-mastodon"
 	"github.com/rmrfslashbin/mastopost/pkg/mastoclient"
 	"github.com/rmrfslashbin/mastopost/pkg/rssfeed"
 	"github.com/rmrfslashbin/mastopost/pkg/ssmparams"
@@ -104,11 +108,11 @@ func handler(ctx context.Context, message Message) error {
 				} else {
 					config.feedUrl = feedUrl
 				}
-			case "rss/lastUpdated":
+			case "runtime/lastUpdated":
 				if t, err := time.Parse(time.RFC3339, *p.Value); err == nil {
 					config.lastUpdated = &t
 				}
-			case "mastodon/lastPublished":
+			case "runtime/lastPublished":
 				if t, err := time.Parse(time.RFC3339, *p.Value); err == nil {
 					config.lastPublished = &t
 				}
@@ -156,13 +160,57 @@ func handler(ctx context.Context, message Message) error {
 		return err
 	}
 
+	ch := make(chan *mastodon.ID)
+
 	for _, item := range newItems {
 		// create a new post/toot
 		newPost, err := utils.MakePost(item)
 		if err != nil {
 			return err
 		}
-		errCh := client.AsyncPost(newPost)
+		go func(newPost *mastodon.Toot) {
+			id, err := client.Post(newPost)
+			if err != nil {
+				log.Error("Error posting toot",
+					zap.String("Error", err.Error()),
+					zap.Error(err),
+				)
+			}
+			ch <- id
+		}(newPost)
+	}
+
+	for i := 0; i < len(newItems); i++ {
+		status := <-ch
+		log.Info("posted to mastodon",
+			zap.Any("post ID", status),
+			zap.String("to instance", config.instance.String()),
+		)
+	}
+	close(ch)
+
+	// Update state/config
+	var paramNames []*ssm.PutParameterInput
+
+	paramNames = append(paramNames, &ssm.PutParameterInput{
+		Name:      aws.String(fmt.Sprintf("%sruntime/lastUpdated", path)),
+		Value:     aws.String(feed.GetLastUpdated().Format(time.RFC3339)),
+		Type:      types.ParameterTypeString,
+		Overwrite: aws.Bool(true),
+	})
+
+	paramNames = append(paramNames, &ssm.PutParameterInput{
+		Name:      aws.String(fmt.Sprintf("%sruntime/lastPublished", path)),
+		Value:     aws.String(feed.GetLastPublished().Format(time.RFC3339)),
+		Type:      types.ParameterTypeString,
+		Overwrite: aws.Bool(true),
+	})
+
+	for _, param := range paramNames {
+		_, err := params.PutParam(param)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
