@@ -1,24 +1,19 @@
 package main
 
 import (
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
-	"github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
+	"os"
+
 	"github.com/rmrfslashbin/mastopost/pkg/events"
-	"go.uber.org/zap"
+	"github.com/rs/zerolog"
 )
 
 var (
-	log *zap.Logger
+	log zerolog.Logger
 )
 
 func init() {
 	// Set up the logger
-	log, err := zap.NewProduction()
-	if err != nil {
-		panic(err)
-	}
-	defer log.Sync()
+	log = zerolog.New(os.Stderr).With().Timestamp().Logger()
 }
 
 func main() {
@@ -28,20 +23,18 @@ func main() {
 		events.WithRegion("us-east-1"),
 	)
 	if err != nil {
-		log.Fatal("error creating eventbridge client", zap.Error(err))
+		log.Fatal().Err(err).Msg("failed to create eventbridge client")
 	}
-	arn, err := eb.PutRule(&eventbridge.PutRuleInput{
-		Name:               aws.String("test"),
-		Description:        aws.String("Testing for mastopost orchestrtion"),
-		ScheduleExpression: aws.String("rate(10 minutes)"),
-		State:              types.RuleStateEnabled,
-		Tags: []types.Tag{
-			{Key: aws.String("app"), Value: aws.String("mastopsot")},
-			{Key: aws.String("feedname"), Value: aws.String("orch_test")},
-		},
+	arn, err := eb.PutRule(&events.NewEvent{
+		Name:               "test",
+		Description:        "test",
+		ScheduleExpression: "rate(5 minutes)",
+		//State: false, // default is false
+		Feedname:  "test",
+		LambdaArn: "arn:aws:lambda:us-east-1:xxxxxxxxxxxx:function:mastopost-rss-crossposter",
 	})
 	if err != nil {
-		log.Fatal("error putting rule", zap.Error(err))
+		log.Fatal().Err(err).Msg("failed to create eventbridge rule")
 	}
-	log.Info("rule arn", zap.String("arn", *arn))
+	log.Info().Str("arn", *arn).Msg("created eventbridge rule")
 }

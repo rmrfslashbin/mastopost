@@ -4,10 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
-	"go.uber.org/zap"
+	"github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/rs/zerolog"
 )
+
+type RuleArn *string
 
 type NewEvent struct {
 	Name               string
@@ -21,10 +26,11 @@ type NewEvent struct {
 type EventPramsOptions func(config *EventPramsConfig)
 
 type EventPramsConfig struct {
-	log         *zap.Logger
+	log         zerolog.Logger
 	region      string
 	profile     string
 	eventbridge *eventbridge.Client
+	lambda      *lambda.Client
 }
 
 func New(opts ...func(*EventPramsConfig)) (*EventPramsConfig, error) {
@@ -49,13 +55,16 @@ func New(opts ...func(*EventPramsConfig)) (*EventPramsConfig, error) {
 	if err != nil {
 		panic(err)
 	}
-	svc := eventbridge.NewFromConfig(c)
-	cfg.eventbridge = svc
+	eventbridgeSvc := eventbridge.NewFromConfig(c)
+	cfg.eventbridge = eventbridgeSvc
+
+	lambdaSvc := lambda.NewFromConfig(c)
+	cfg.lambda = lambdaSvc
 
 	return cfg, nil
 }
 
-func WithLogger(logger *zap.Logger) EventPramsOptions {
+func WithLogger(logger zerolog.Logger) EventPramsOptions {
 	return func(config *EventPramsConfig) {
 		config.log = logger
 	}
@@ -73,22 +82,57 @@ func WithRegion(region string) EventPramsOptions {
 	}
 }
 
-func (e *EventPramsConfig) PutRule(ruleInput *eventbridge.PutRuleInput) (*string, error) {
-	putRuleResp, err := e.eventbridge.PutRule(context.TODO(), ruleInput)
+func (e *EventPramsConfig) PutRule(newEvent *NewEvent) (RuleArn, error) {
+	// Disable the rule by default
+	var enabled types.RuleState
+	enabled = types.RuleStateDisabled
+	if newEvent.State {
+		enabled = types.RuleStateEnabled
+	}
+
+	putRuleResp, err := e.eventbridge.PutRule(context.TODO(), &eventbridge.PutRuleInput{
+		Name:               aws.String(newEvent.Name),
+		Description:        aws.String(newEvent.Description),
+		ScheduleExpression: aws.String(newEvent.ScheduleExpression),
+		State:              enabled,
+		Tags: []types.Tag{
+			{Key: aws.String("app"), Value: aws.String("mastopsot")},
+			{Key: aws.String("feedname"), Value: aws.String(newEvent.Feedname)},
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	/*
-		ruleName := *ruleInput.Name + "_target"
-		putRuleTagetResp, err := e.eventbridge.PutTargets(context.TODO(), &eventbridge.PutTargetsInput{
-			Rule: aws.String(ruleName),
-			Targets: []eventbridge.Target{
-		})
-		if err != nil {
-			return nil, err
-		}
-	*/
+	_, err = e.lambda.AddPermission(context.TODO(), &lambda.AddPermissionInput{
+		Action:       aws.String("lambda:InvokeFunction"),
+		FunctionName: &newEvent.LambdaArn,
+		Principal:    aws.String("events.amazonaws.com"),
+		SourceArn:    putRuleResp.RuleArn,
+		StatementId:  aws.String("Rule" + newEvent.Name + "InvokeLambdaFunction"),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	putRuleTagetResp, err := e.eventbridge.PutTargets(context.TODO(), &eventbridge.PutTargetsInput{
+		Rule: aws.String(newEvent.Name),
+		Targets: []types.Target{
+			{
+				Arn:   aws.String(newEvent.LambdaArn),
+				Id:    aws.String(newEvent.Name),
+				Input: aws.String(fmt.Sprintf(`{"feed_name":"%s"}`, newEvent.Feedname)),
+			},
+		},
+	})
+	if err != nil {
+		e.log.Error().
+			Int32("FailedEntryCount", putRuleTagetResp.FailedEntryCount).
+			Err(err).
+			Str("FailedEntry", fmt.Sprintf("%v", putRuleTagetResp.FailedEntries)).
+			Msg("Error adding target to rule")
+		return nil, err
+	}
 
 	return putRuleResp.RuleArn, nil
 }
