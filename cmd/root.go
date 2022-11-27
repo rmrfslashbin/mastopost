@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"os"
+	"path"
 
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
@@ -28,7 +29,10 @@ const (
 )
 
 var (
-	log zerolog.Logger
+	log           zerolog.Logger
+	cfgFile       string
+	configFile    string
+	homeConfigDir string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -56,12 +60,45 @@ func Execute() {
 }
 
 func init() {
+	var err error
 	// Set up the logger
 	log = zerolog.New(os.Stderr).With().Timestamp().Logger()
 
+	cobra.OnInitialize(initConfig)
+
+	// Find home directory.
+	homeConfigDir, err = os.UserConfigDir()
+	cobra.CheckErr(err)
+	homeConfigDir = path.Join(homeConfigDir, "mastopost")
+
+	configFile = path.Join(homeConfigDir, "config.yaml")
+
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", configFile, "Location of config file")
+}
+
+func initConfig() {
 	initViper(viper.GetViper())
 }
 
 func initViper(v *viper.Viper) {
+	if cfgFile != "" {
+		// Use config file from the flag.
+		viper.SetConfigFile(cfgFile)
+	} else {
+		// Search config in home directory
+		v.AddConfigPath(homeConfigDir)
+		v.SetConfigType("yaml")
+		v.SetConfigName("config")
+	}
+
+	// read in environment variables that match
 	v.AutomaticEnv()
+
+	// If a config file is found, read it in.
+	// If a config file is found, read it in.
+	if err := v.ReadInConfig(); err == nil {
+		if v == viper.GetViper() {
+			log.Info().Str("config", v.ConfigFileUsed()).Msg("Using config file")
+		}
+	}
 }

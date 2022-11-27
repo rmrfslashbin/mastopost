@@ -23,6 +23,14 @@ type NewEvent struct {
 	LambdaArn          string
 }
 
+type EventDetails struct {
+	Arn                string
+	Description        string
+	Name               string
+	ScheduleExpression string
+	State              bool
+}
+
 type EventPramsOptions func(config *EventPramsConfig)
 
 type EventPramsConfig struct {
@@ -135,4 +143,21 @@ func (e *EventPramsConfig) PutRule(newEvent *NewEvent) (RuleArn, error) {
 	}
 
 	return putRuleResp.RuleArn, nil
+}
+
+func (e *EventPramsConfig) GetEventByName(name string) (*EventDetails, error) {
+	resp, err := e.eventbridge.DescribeRule(context.TODO(), &eventbridge.DescribeRuleInput{
+		Name: aws.String(name),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &EventDetails{
+		Arn:                *resp.Arn,
+		Description:        *resp.Description,
+		Name:               *resp.Name,
+		ScheduleExpression: *resp.ScheduleExpression,
+		State:              resp.State == types.RuleStateEnabled,
+	}, nil
 }

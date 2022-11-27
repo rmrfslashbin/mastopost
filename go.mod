@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.16.20
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.25.1
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.33.1
+	github.com/davecgh/go-spew v1.1.1
 	github.com/iancoleman/strcase v0.2.0
 	github.com/mattn/go-mastodon v0.0.6
 	github.com/mmcdole/gofeed v1.1.3
