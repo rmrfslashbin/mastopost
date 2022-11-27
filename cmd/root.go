@@ -6,9 +6,9 @@ package cmd
 import (
 	"os"
 
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -23,8 +23,12 @@ type Config struct {
 	AWSRegion  string `json:"awsregion"`
 }
 
+const (
+	LAMBDA_FUNCTION_NAME = "mastopost-rss-crossposter"
+)
+
 var (
-	log *zap.Logger
+	log zerolog.Logger
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -52,11 +56,8 @@ func Execute() {
 }
 
 func init() {
-	log, err := zap.NewProduction()
-	if err != nil {
-		panic(err)
-	}
-	defer log.Sync()
+	// Set up the logger
+	log = zerolog.New(os.Stderr).With().Timestamp().Logger()
 
 	initViper(viper.GetViper())
 }

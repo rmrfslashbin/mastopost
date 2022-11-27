@@ -18,12 +18,12 @@ import (
 	"github.com/rmrfslashbin/mastopost/pkg/rssfeed"
 	"github.com/rmrfslashbin/mastopost/pkg/ssmparams"
 	"github.com/rmrfslashbin/mastopost/pkg/utils"
-	"go.uber.org/zap"
+	"github.com/rs/zerolog"
 )
 
 var (
 	aws_region string
-	log        *zap.Logger
+	log        zerolog.Logger
 )
 
 type Message struct {
@@ -41,11 +41,7 @@ type Config struct {
 }
 
 func init() {
-	log, err := zap.NewProduction()
-	if err != nil {
-		panic(err)
-	}
-	defer log.Sync()
+	log = zerolog.New(os.Stderr).With().Timestamp().Logger()
 	aws_region = os.Getenv("AWS_REGION")
 }
 
@@ -54,7 +50,7 @@ func main() {
 	var err error
 	defer func() {
 		if err != nil {
-			log.Fatal("main crashed", zap.Error(err))
+			log.Fatal().Err(err).Msg("main crashed")
 		}
 	}()
 	lambda.Start(handler)
@@ -143,9 +139,9 @@ func handler(ctx context.Context, message Message) error {
 	}
 
 	if len(newItems) < 1 {
-		log.Info("No new items in feed",
-			zap.String("feed name", message.FeedName),
-		)
+		log.Info().
+			Str("feedName", message.FeedName).
+			Msg("no new items")
 		return nil
 	}
 
@@ -171,10 +167,7 @@ func handler(ctx context.Context, message Message) error {
 		go func(newPost *mastodon.Toot) {
 			id, err := client.Post(newPost)
 			if err != nil {
-				log.Error("Error posting toot",
-					zap.String("Error", err.Error()),
-					zap.Error(err),
-				)
+				log.Error().Err(err).Msg("failed to post")
 			}
 			ch <- id
 		}(newPost)
@@ -182,10 +175,10 @@ func handler(ctx context.Context, message Message) error {
 
 	for i := 0; i < len(newItems); i++ {
 		status := <-ch
-		log.Info("posted to mastodon",
-			zap.Any("post ID", status),
-			zap.String("to instance", config.instance.String()),
-		)
+		log.Info().
+			Str("toInstance", config.instance.String()).
+			Str("statusId", fmt.Sprintf("%v", status)).
+			Msg("posted")
 	}
 	close(ch)
 

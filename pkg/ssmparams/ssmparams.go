@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	"go.uber.org/zap"
+	"github.com/rs/zerolog"
 )
 
 type SSMParamsOutput struct {
@@ -18,7 +18,7 @@ type SSMParamsOutput struct {
 type SSMParamsOption func(config *SSMParamsConfig)
 
 type SSMParamsConfig struct {
-	log     *zap.Logger
+	log     zerolog.Logger
 	region  string
 	profile string
 	ssm     *ssm.Client
@@ -52,7 +52,7 @@ func New(opts ...func(*SSMParamsConfig)) (*SSMParamsConfig, error) {
 	return cfg, nil
 }
 
-func WithLogger(logger *zap.Logger) SSMParamsOption {
+func WithLogger(logger zerolog.Logger) SSMParamsOption {
 	return func(config *SSMParamsConfig) {
 		config.log = logger
 	}
@@ -75,9 +75,7 @@ func (config *SSMParamsConfig) GetParams(paramNames []string) (*SSMParamsOutput,
 		Names: paramNames,
 	})
 	if err != nil {
-		config.log.Error("error getting parameters",
-			zap.String("Action", "ssmparams::GetParameters"),
-			zap.Error(err))
+		config.log.Error().Str("action", "ssmparams::GetParameters").Msg("error getting parameters")
 		return nil, err
 	}
 	output := make(map[string]interface{}, len(params.Parameters))
@@ -94,10 +92,7 @@ func (config *SSMParamsConfig) GetParams(paramNames []string) (*SSMParamsOutput,
 func (config *SSMParamsConfig) PutParam(params *ssm.PutParameterInput) (*ssm.PutParameterOutput, error) {
 	resp, err := config.ssm.PutParameter(context.TODO(), params)
 	if err != nil {
-		config.log.Error("error putting parameters",
-			zap.String("Action", "ssmparams::PutParameters"),
-			zap.String("error", err.Error()),
-			zap.Error(err))
+		config.log.Error().Str("action", "ssmparams::PutParam").Msg("error putting parameter")
 		return nil, err
 	}
 	return resp, nil
@@ -110,10 +105,7 @@ func (config *SSMParamsConfig) ListAllParams(path string, nextToken *string) (*s
 		NextToken: nextToken,
 	})
 	if err != nil {
-		config.log.Error("error listing parameters",
-			zap.String("Action", "ssmparams::ListAllParams"),
-			zap.String("error", err.Error()),
-			zap.Error(err))
+		config.log.Error().Str("action", "ssmparams::ListAllParams").Msg("error listing parameters")
 		return nil, err
 	}
 
@@ -125,10 +117,7 @@ func (config *SSMParamsConfig) DeleteParams(paramNames []string) (*ssm.DeletePar
 		Names: paramNames,
 	})
 	if err != nil {
-		config.log.Error("error deleting parameter",
-			zap.String("Action", "ssmparams::DeleteParam"),
-			zap.String("error", err.Error()),
-			zap.Error(err))
+		config.log.Error().Str("action", "ssmparams::DeleteParams").Msg("error deleting parameters")
 		return nil, err
 	}
 

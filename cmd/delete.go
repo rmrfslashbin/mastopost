@@ -8,7 +8,6 @@ import (
 	"github.com/rmrfslashbin/mastopost/pkg/ssmparams"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 // deleteCmd represents the delete command
@@ -20,11 +19,11 @@ var deleteCmd = &cobra.Command{
 		var err error
 		defer func() {
 			if err != nil {
-				log.Fatal("main crashed", zap.Error(err))
+				log.Fatal().Err(err).Msg("main crashed")
 			}
 		}()
 		if err := deleteConfigs(); err != nil {
-			log.Fatal("error deleting configs", zap.Error(err))
+			log.Fatal().Err(err).Msg("error deleting configs")
 		}
 	},
 }

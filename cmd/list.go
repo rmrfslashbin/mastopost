@@ -7,7 +7,6 @@ import (
 	"github.com/rmrfslashbin/mastopost/pkg/ssmparams"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 // listCmd represents the list command
@@ -19,11 +18,11 @@ var listCmd = &cobra.Command{
 		var err error
 		defer func() {
 			if err != nil {
-				log.Fatal("main crashed", zap.Error(err))
+				log.Fatal().Err(err).Msg("main crashed")
 			}
 		}()
 		if err := listConfigs(); err != nil {
-			log.Fatal("error listing configs", zap.Error(err))
+			log.Fatal().Err(err).Msg("error listing")
 		}
 	},
 }

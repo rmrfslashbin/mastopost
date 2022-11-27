@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/gob"
+	"fmt"
 	"net/url"
 	"os"
 	"path"
@@ -11,14 +12,14 @@ import (
 	"github.com/rmrfslashbin/mastopost/pkg/mastoclient"
 	"github.com/rmrfslashbin/mastopost/pkg/rssfeed"
 	"github.com/rmrfslashbin/mastopost/pkg/utils"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 // Bootstrap configs
 var (
-	log           *zap.Logger
+	log           zerolog.Logger
 	cfgFile       string
 	homeConfigDir string
 )
@@ -45,11 +46,11 @@ var rootCmd = &cobra.Command{
 		var err error
 		defer func() {
 			if err != nil {
-				log.Fatal("main crashed", zap.Error(err))
+				log.Fatal().Err(err).Msg("Error")
 			}
 		}()
 		if err := mastopost(); err != nil {
-			log.Fatal("error posting", zap.Error(err))
+			log.Fatal().Err(err).Msg("Error posting to Mastodon")
 		}
 	},
 }
@@ -58,12 +59,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	var err error
 
-	// Set up the logger
-	log, err = zap.NewProduction()
-	if err != nil {
-		panic(err)
-	}
-	defer log.Sync()
+	log = zerolog.New(os.Stderr).With().Timestamp().Logger()
 
 	// Find home directory.
 	homeConfigDir, err = os.UserConfigDir()
@@ -199,18 +195,20 @@ func mastopost() error {
 	}
 
 	// Log some info
-	log.Info("last update", zap.String("lastupdate", feed.GetLastUpdated().String()))
-	log.Info("last published", zap.String("lastpublished", feed.GetLastPublished().String()))
+	log.Info().
+		Str("lastupdate", feed.GetLastUpdated().String()).
+		Str("lastpublished", feed.GetLastPublished().String()).
+		Msgf("Found %d new items", len(newItems))
 
 	// Bail out if there's nothing new
 	if len(newItems) < 1 {
-		log.Info("no new posts")
+		log.Info().Msg("no new posts")
 		return nil
 	}
 
 	// Are we doing a dry run?
 	if viper.GetBool("dryrun") {
-		log.Info("dryrun mode. not posting to Mastodon")
+		log.Info().Msg("dryrun mode. not posting to Mastodon")
 		return nil
 	}
 
@@ -241,10 +239,7 @@ func mastopost() error {
 		go func(newPost *mastodon.Toot) {
 			id, err := client.Post(newPost)
 			if err != nil {
-				log.Error("Error posting toot",
-					zap.String("Error", err.Error()),
-					zap.Error(err),
-				)
+				log.Error().Err(err).Msg("error posting to Mastodon")
 			}
 			ch <- id
 		}(newPost)
@@ -252,10 +247,10 @@ func mastopost() error {
 
 	for i := 0; i < len(newItems); i++ {
 		status := <-ch
-		log.Info("posted to mastodon",
-			zap.Any("post ID", status),
-			zap.String("to instance", instanceUrl.String()),
-		)
+		log.Info().
+			Str("id", fmt.Sprintf("%v", status)).
+			Str("toInstance", instanceUrl.String()).
+			Msg("posted to Mastodon")
 	}
 	close(ch)
 

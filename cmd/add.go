@@ -11,7 +11,6 @@ import (
 	"github.com/rmrfslashbin/mastopost/pkg/ssmparams"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 // addCmd represents the add command
@@ -23,11 +22,11 @@ var addCmd = &cobra.Command{
 		var err error
 		defer func() {
 			if err != nil {
-				log.Fatal("main crashed", zap.Error(err))
+				log.Fatal().Err(err).Msg("main crashed")
 			}
 		}()
 		if err := addNewConfig(); err != nil {
-			log.Fatal("error adding new config", zap.Error(err))
+			log.Fatal().Err(err).Msg("error adding new config")
 		}
 	},
 }
@@ -62,6 +61,11 @@ func init() {
 }
 
 func addNewConfig() error {
+	arn := viper.GetString("lambdaFunctions." + LAMBDA_FUNCTION_NAME)
+	if arn == "" {
+		return fmt.Errorf("missing lambdaFunctions.%s in config", LAMBDA_FUNCTION_NAME)
+	}
+
 	fmt.Printf("feedname: %s\n", addCmdViper.GetString("feedname"))
 	config := Config{
 		URL:        addCmdViper.GetString("url"),

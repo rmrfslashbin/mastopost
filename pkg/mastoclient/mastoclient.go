@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	"github.com/mattn/go-mastodon"
-	"go.uber.org/zap"
+	"github.com/rs/zerolog"
 )
 
 type NoInstance struct {
@@ -98,7 +98,7 @@ type Option func(c *Config)
 
 // Config for the weather query
 type Config struct {
-	log       *zap.Logger
+	log       zerolog.Logger
 	instance  *url.URL
 	clientid  string
 	clientsec string
@@ -112,16 +112,6 @@ func New(opts ...Option) (*Config, error) {
 	// apply the list of options to Config
 	for _, opt := range opts {
 		opt(c)
-	}
-
-	// Set up default logger
-	if c.log == nil {
-		if log, err := zap.NewProduction(); err != nil {
-			return nil, err
-		} else {
-			c.log = log
-			defer c.log.Sync()
-		}
 	}
 
 	return c, nil
@@ -156,7 +146,7 @@ func WithToken(token string) Option {
 }
 
 // WithLogger sets the logger to use
-func WithLogger(log *zap.Logger) Option {
+func WithLogger(log zerolog.Logger) Option {
 	return func(c *Config) {
 		c.log = log
 	}

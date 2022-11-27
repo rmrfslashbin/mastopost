@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/mmcdole/gofeed"
-	"go.uber.org/zap"
+	"github.com/rs/zerolog"
 )
 
 type NoUpdates struct {
@@ -70,7 +70,7 @@ type Option func(c *Config)
 
 // Config for the weather query
 type Config struct {
-	log           *zap.Logger
+	log           zerolog.Logger
 	url           *url.URL
 	lastUpdated   *time.Time
 	lastPublished *time.Time
@@ -83,16 +83,6 @@ func New(opts ...Option) (*Config, error) {
 	// apply the list of options to Config
 	for _, opt := range opts {
 		opt(c)
-	}
-
-	// Set up default logger
-	if c.log == nil {
-		if log, err := zap.NewProduction(); err != nil {
-			return nil, err
-		} else {
-			c.log = log
-			defer c.log.Sync()
-		}
 	}
 
 	if c.lastUpdated == nil {
@@ -123,7 +113,7 @@ func WithLastUpdated(t *time.Time) Option {
 }
 
 // WithLogger sets the logger for the RSS feed
-func WithLogger(l *zap.Logger) Option {
+func WithLogger(l zerolog.Logger) Option {
 	return func(c *Config) {
 		c.log = l
 	}
@@ -177,16 +167,17 @@ func (c *Config) Parse() ([]NewItems, error) {
 	}
 
 	// Log info about the feed
-	c.log.Info("Parsed feed",
-		zap.String("title", feed.Title),
-		zap.String("link", feed.Link),
-		zap.String("feed last updated", feed.UpdatedParsed.String()),
-		zap.Int("items", len(feed.Items)),
-		zap.String("last updated", c.lastUpdated.String()),
-		zap.String("last published", c.lastPublished.String()),
-	)
+	c.log.Info().
+		Str("title", feed.Title).
+		Str("link", feed.Link).
+		Str("updatedParsed", feed.UpdatedParsed.String()).
+		Int("items", len(feed.Items)).
+		Str("lastUpdated", c.lastUpdated.String()).
+		Str("lastPublished", c.lastPublished.String()).
+		Msg("parsed RSS feed")
+
 	if c.lastUpdated.After(*feed.UpdatedParsed) {
-		c.log.Info("No updates")
+		c.log.Info().Msg("No updates")
 		return nil, &NoUpdates{Url: c.url}
 	}
 	c.lastUpdated = feed.UpdatedParsed
@@ -196,11 +187,12 @@ func (c *Config) Parse() ([]NewItems, error) {
 	var lastPublished time.Time
 	for _, item := range feed.Items {
 		if item.PublishedParsed.After(*c.lastPublished) {
-			c.log.Debug("Found new item",
-				zap.String("title", item.Title),
-				zap.String("link", item.Link),
-				zap.Time("published", *item.PublishedParsed),
-			)
+			c.log.Debug().
+				Str("title", item.Title).
+				Str("link", item.Link).
+				Str("publishedParsed", item.PublishedParsed.String()).
+				Msg("New item")
+
 			newItems = append(newItems, item)
 			if item.PublishedParsed.After(lastPublished) {
 				lastPublished = *item.PublishedParsed
