@@ -123,7 +123,7 @@ func handler(ctx context.Context, message Message) error {
 
 	// Set up a new feed parser
 	feed, err := rssfeed.New(
-		rssfeed.WithLogger(log),
+		rssfeed.WithLogger(&log),
 		rssfeed.WithURL(config.feedUrl),
 		rssfeed.WithLastUpdated(config.lastUpdated),
 		rssfeed.WithLastPublished(config.lastPublished),
@@ -146,7 +146,7 @@ func handler(ctx context.Context, message Message) error {
 	}
 
 	client, err := mastoclient.New(
-		mastoclient.WithLogger(log),
+		mastoclient.WithLogger(&log),
 		mastoclient.WithInstance(config.instance),
 		mastoclient.WithClientID(config.clientID),
 		mastoclient.WithClientSecret(config.clientSec),

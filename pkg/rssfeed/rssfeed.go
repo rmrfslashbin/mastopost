@@ -70,7 +70,7 @@ type Option func(c *Config)
 
 // Config for the weather query
 type Config struct {
-	log           zerolog.Logger
+	log           *zerolog.Logger
 	url           *url.URL
 	lastUpdated   *time.Time
 	lastPublished *time.Time
@@ -113,7 +113,7 @@ func WithLastUpdated(t *time.Time) Option {
 }
 
 // WithLogger sets the logger for the RSS feed
-func WithLogger(l zerolog.Logger) Option {
+func WithLogger(l *zerolog.Logger) Option {
 	return func(c *Config) {
 		c.log = l
 	}

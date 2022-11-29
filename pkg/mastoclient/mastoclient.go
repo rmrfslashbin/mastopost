@@ -98,7 +98,7 @@ type Option func(c *Config)
 
 // Config for the weather query
 type Config struct {
-	log       zerolog.Logger
+	log       *zerolog.Logger
 	instance  *url.URL
 	clientid  string
 	clientsec string
@@ -146,7 +146,7 @@ func WithToken(token string) Option {
 }
 
 // WithLogger sets the logger to use
-func WithLogger(log zerolog.Logger) Option {
+func WithLogger(log *zerolog.Logger) Option {
 	return func(c *Config) {
 		c.log = log
 	}
