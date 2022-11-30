@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"path"
 
@@ -12,30 +11,27 @@ import (
 )
 
 type Context struct {
-	log *zerolog.Logger
+	log        *zerolog.Logger
+	configFile *string
 }
 
 type OneshotCmd struct {
-	LastUpdateFile *os.File `type:"existingfile" help:"File to store the last update time."`
-	NoConfirm      bool     `name:"noconfirm" help:"Don't prompt for confirmation."`
-	DryRun         bool     `name:"dryrun" help:"Don't actually post to Mastodon."`
-	Feedname       string   `name:"feedname" env:"FEED_NAME" required:"" help:"Name of the feed to post."`
-	StatsFile      string   `name:"statsfile" env:"STATS_FILE" required:"" type:"existingfile" help:"Path to the stats file."`
-	FeedURL        *url.URL `name:"feedurl" env:"FEED_URL" required:"" help:"URL of the feed to post."`
-	Instance       *url.URL `name:"instance" env:"INSTANCE" required:"" help:"URL of the Mastodon instance."`
-	ClientId       string   `name:"clientid" env:"CLIENT_ID" required:"" help:"Mastodon client ID."`
-	ClientSecret   string   `name:"clientsecret" env:"CLIENT_SECRET" required:"" help:"Mastodon client secret."`
-	AccessToken    string   `name:"accesstoken" env:"ACCESS_TOKEN" required:"" help:"Mastodon access token."`
+	DryRun   bool   `name:"dryrun" help:"Don't actually post to Mastodon."`
+	Feedname string `name:"feedname" env:"FEED_NAME" required:"" help:"Name of the feed to post."`
 }
 
 func (r *OneshotCmd) Run(ctx *Context) error {
 	if foo, err := oneshot.NewOneshot(
 		oneshot.WithLogger(ctx.log),
+		oneshot.WithConfigFile(ctx.configFile),
+		oneshot.WithFeedName(&r.Feedname),
+		oneshot.WithDryrun(r.DryRun),
 	); err != nil {
 		return err
 	} else {
 		return foo.Run()
 	}
+
 }
 
 type AddCmd struct {
@@ -60,8 +56,8 @@ type StatusCmd struct {
 }
 
 type CLI struct {
-	LogLevel   string   `name:"loglevel" default:"info" enum:"panic,fatal,error,warn,info,debug,trace" help:"Set the log level."`
-	ConfigFile *os.File `name:"configfile" env:"CONFIG_FILE" type:"existingfile" help:"Path to the config file."`
+	LogLevel   string  `name:"loglevel" env:"LOGLEVEL" default:"info" enum:"panic,fatal,error,warn,info,debug,trace" help:"Set the log level."`
+	ConfigFile *string `name:"configfile" env:"CONFIG_FILE" help:"Path to the config file."`
 
 	Oneshot OneshotCmd `cmd:"" help:"Run an RSS feed parser and post to Mastodon."`
 	Add     AddCmd     `cmd:"" help:"Add a new Mastopost job."`
@@ -71,34 +67,28 @@ type CLI struct {
 }
 
 var (
-	homeConfigDir  string
-	configFile     string
-	lastUpdateFile string
+	homeConfigDir string
+	configFile    string
 )
 
 const (
-	APP_NAME        = "mastopost"
-	CONFIG_FILE     = "config.json"
-	LAST_UPATE_FILE = "lastupdate.gob"
+	APP_NAME    = "mastopost"
+	CONFIG_FILE = "config.json"
 )
 
-func init() {
-
-}
-
 func main() {
+	var err error
 	// Set up the logger
 	log := zerolog.New(os.Stderr).With().Timestamp().Logger()
 
 	// Find home directory.
-	homeConfigDir, err := os.UserConfigDir()
+	homeConfigDir, err = os.UserConfigDir()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to find user config directory")
 	}
 
 	homeConfigDir = path.Join(homeConfigDir, APP_NAME)
 	configFile = path.Join(homeConfigDir, CONFIG_FILE)
-	lastUpdateFile = path.Join(homeConfigDir, LAST_UPATE_FILE)
 
 	var cli CLI
 	ctx := kong.Parse(&cli)
@@ -120,14 +110,20 @@ func main() {
 		log = log.Level(zerolog.TraceLevel)
 	}
 
+	if cli.ConfigFile == nil {
+		log.Debug().
+			Str("configfile", configFile).
+			Msg("Using default config file")
+		cli.ConfigFile = &configFile
+	}
+
 	log.Debug().Msg("Starting up")
 	log.Debug().
-		Str("configfile", configFile).
-		Str("lastupdatefile", lastUpdateFile).
+		Str("configfile", *cli.ConfigFile).
 		Str("homeconfigdir", homeConfigDir).
 		Msg("config paths/files")
 
 	// Call the Run() method of the selected parsed command.
-	err = ctx.Run(&Context{log: &log})
+	err = ctx.Run(&Context{log: &log, configFile: cli.ConfigFile})
 	ctx.FatalIfErrorf(err)
 }

@@ -1,0 +1,25 @@
+{
+    "feeds": {
+        "atlbeltline": {
+            "lastupdatefile": "/Users/user/Library/Application Support/mastopost/atlbeltline.gob",
+            "feedurl": "https://beltline.org/feed/",
+            "clientid": "mastodon_client_id",
+            "clientsecret": "mastodon_client_secret",
+            "accesstoken": "mastodon_access_token",
+            "instance": "https://mastodon.example.com"
+        },
+        "arstechnica": {
+            "lastupdatefile": "/Users/user/Library/Application Support/mastopost/arstechnica.gob",
+            "feedurl": "http://feeds.arstechnica.com/arstechnica/index",
+            "clientid": "mastodon_client_id",
+            "clientsecret": "mastodon_client_secret",
+            "accesstoken": "mastodon_access_token",
+            "instance": "https://nifty-moose.com"
+        }
+    },
+    "lambdaFunctions": {
+        "mastopost-rss-crossposter": {
+            "functionArn": "arn:aws:lambda:us-east-1:xxxxxxxxxxxx:function:mastopost-rss-crossposter"
+        }
+    }
+}
