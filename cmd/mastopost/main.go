@@ -11,8 +11,9 @@ import (
 )
 
 type Context struct {
-	log        *zerolog.Logger
-	configFile *string
+	log           *zerolog.Logger
+	configFile    *string
+	homeConfigDir *string
 }
 
 type OneshotCmd struct {
@@ -32,6 +33,15 @@ func (r *OneshotCmd) Run(ctx *Context) error {
 		return foo.Run()
 	}
 
+}
+
+type CfgCmd struct {
+}
+
+func (r *CfgCmd) Run(ctx *Context) error {
+	fmt.Printf("Home config directory: %s/\n", *ctx.homeConfigDir)
+	fmt.Printf("Config file location:  %s\n", *ctx.configFile)
+	return nil
 }
 
 type AddCmd struct {
@@ -57,13 +67,14 @@ type StatusCmd struct {
 
 type CLI struct {
 	LogLevel   string  `name:"loglevel" env:"LOGLEVEL" default:"info" enum:"panic,fatal,error,warn,info,debug,trace" help:"Set the log level."`
-	ConfigFile *string `name:"configfile" env:"CONFIG_FILE" help:"Path to the config file."`
+	ConfigFile *string `name:"config" env:"CONFIG_FILE" help:"Path to the config file."`
 
 	Oneshot OneshotCmd `cmd:"" help:"Run an RSS feed parser and post to Mastodon."`
 	Add     AddCmd     `cmd:"" help:"Add a new Mastopost job."`
 	Remove  RemoveRmd  `cmd:"" help:"Remove a Mastopost job."`
 	List    ListCmd    `cmd:"" help:"List Mastopost jobs."`
 	Status  StatusCmd  `cmd:"" help:"Show status of Mastopost jobs."`
+	Cfg     CfgCmd     `cmd:"" help:"Show Mastopost config details."`
 }
 
 var (
@@ -124,6 +135,6 @@ func main() {
 		Msg("config paths/files")
 
 	// Call the Run() method of the selected parsed command.
-	err = ctx.Run(&Context{log: &log, configFile: cli.ConfigFile})
+	err = ctx.Run(&Context{log: &log, configFile: cli.ConfigFile, homeConfigDir: &homeConfigDir})
 	ctx.FatalIfErrorf(err)
 }
