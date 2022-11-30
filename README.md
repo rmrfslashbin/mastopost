@@ -45,7 +45,7 @@ The CLI config file is JSON file with the following structure:
             "clientid": "mastodon_client_id",
             "clientsecret": "mastodon_client_secret",
             "accesstoken": "mastodon_access_token",
-            "instance": "https://nifty-moose.com"
+            "instance": "https://mastodon.example.com"
         }
     },
     "lambdaFunctions": {
