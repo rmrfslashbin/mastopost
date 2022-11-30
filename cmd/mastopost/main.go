@@ -6,14 +6,82 @@ import (
 	"path"
 
 	"github.com/alecthomas/kong"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/rmrfslashbin/mastopost/pkg/cmds/oneshot"
+	"github.com/rmrfslashbin/mastopost/pkg/config"
 	"github.com/rs/zerolog"
+)
+
+var (
+	homeConfigDir string
+	configFile    string
+)
+
+const (
+	APP_NAME    = "mastopost"
+	CONFIG_FILE = "config.json"
 )
 
 type Context struct {
 	log           *zerolog.Logger
 	configFile    *string
 	homeConfigDir *string
+}
+
+type CfgCmd struct {
+}
+
+func (r *CfgCmd) Run(ctx *Context) error {
+	fmt.Printf("Home config directory: %s/\n", *ctx.homeConfigDir)
+	fmt.Printf("Config file location:  %s\n\n", *ctx.configFile)
+
+	c, err := config.NewConfig(*ctx.configFile)
+	if err != nil {
+		return err
+	}
+	spew.Dump(c)
+
+	return nil
+}
+
+type LambdaAddCmd struct {
+}
+
+func (r *LambdaAddCmd) Run(ctx *Context) error {
+	fmt.Println("add ")
+	return nil
+}
+
+type LambdaInstallCmd struct {
+}
+
+func (r *LambdaInstallCmd) Run(ctx *Context) error {
+	fmt.Println("install ")
+	return nil
+}
+
+type LambdaListCmd struct {
+}
+
+func (r *LambdaListCmd) Run(ctx *Context) error {
+	fmt.Println("list ")
+	return nil
+}
+
+type LambdaRemoveRmd struct {
+}
+
+func (r *LambdaRemoveRmd) Run(ctx *Context) error {
+	fmt.Println("remove ")
+	return nil
+}
+
+type LambdaStatusCmd struct {
+}
+
+func (r *LambdaStatusCmd) Run(ctx *Context) error {
+	fmt.Println("status ")
+	return nil
 }
 
 type OneshotCmd struct {
@@ -35,57 +103,20 @@ func (r *OneshotCmd) Run(ctx *Context) error {
 
 }
 
-type CfgCmd struct {
-}
-
-func (r *CfgCmd) Run(ctx *Context) error {
-	fmt.Printf("Home config directory: %s/\n", *ctx.homeConfigDir)
-	fmt.Printf("Config file location:  %s\n", *ctx.configFile)
-	return nil
-}
-
-type AddCmd struct {
-	Paths []string `arg:"" optional:"" name:"path" help:"Paths to list." type:"path"`
-}
-
-func (r *AddCmd) Run(ctx *Context) error {
-	fmt.Println("add ", r.Paths)
-	return nil
-}
-
-type RemoveRmd struct {
-	Paths []string `arg:"" optional:"" name:"path" help:"Paths to list." type:"path"`
-}
-
-type ListCmd struct {
-	Paths []string `arg:"" optional:"" name:"path" help:"Paths to list." type:"path"`
-}
-
-type StatusCmd struct {
-	Paths []string `arg:"" optional:"" name:"path" help:"Paths to list." type:"path"`
-}
-
 type CLI struct {
 	LogLevel   string  `name:"loglevel" env:"LOGLEVEL" default:"info" enum:"panic,fatal,error,warn,info,debug,trace" help:"Set the log level."`
 	ConfigFile *string `name:"config" env:"CONFIG_FILE" help:"Path to the config file."`
 
 	Oneshot OneshotCmd `cmd:"" help:"Run an RSS feed parser and post to Mastodon."`
-	Add     AddCmd     `cmd:"" help:"Add a new Mastopost job."`
-	Remove  RemoveRmd  `cmd:"" help:"Remove a Mastopost job."`
-	List    ListCmd    `cmd:"" help:"List Mastopost jobs."`
-	Status  StatusCmd  `cmd:"" help:"Show status of Mastopost jobs."`
-	Cfg     CfgCmd     `cmd:"" help:"Show Mastopost config details."`
+	Lambda  struct {
+		Add    LambdaAddCmd    `cmd:"" help:"Add a new Mastopost job."`
+		Remove LambdaRemoveRmd `cmd:"" help:"Remove a Mastopost job."`
+		List   LambdaListCmd   `cmd:"" help:"List Mastopost jobs."`
+		Status LambdaStatusCmd `cmd:"" help:"Show status of Mastopost jobs."`
+	} `cmd:"" help:"Manage the Lambda functions and events."`
+
+	Cfg CfgCmd `cmd:"" help:"Show Mastopost config details."`
 }
-
-var (
-	homeConfigDir string
-	configFile    string
-)
-
-const (
-	APP_NAME    = "mastopost"
-	CONFIG_FILE = "config.json"
-)
 
 func main() {
 	var err error
