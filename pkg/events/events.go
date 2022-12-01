@@ -12,6 +12,106 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// AWSRegionRequiredError is returned when AWS Region is not set
+type AWSRegionRequiredError struct {
+	Err error
+}
+
+// Error returns the error message
+func (e *AWSRegionRequiredError) Error() string {
+	if e.Err == nil {
+		return "AWS Region is required. Use WithRegion() to set it."
+	}
+	return e.Err.Error()
+}
+
+// AWSConfigError is an error returned when there is an error with the AWS Config
+type AWSConfigError struct {
+	Err error
+}
+
+// Error returns the error message
+func (e *AWSConfigError) Error() string {
+	if e.Err == nil {
+		return "AWS Config error"
+	} else {
+		return fmt.Sprintf("AWS Config error: %s", e.Err.Error())
+	}
+}
+
+// DescribeRuleError is an error returned when there is an error with the DescribeRule API call
+type DescribeRuleError struct {
+	Err error
+}
+
+// Error returns the error message
+func (e *DescribeRuleError) Error() string {
+	if e.Err == nil {
+		return "EventBridge DescribeRule API call error"
+	} else {
+		return fmt.Sprintf("EventBridge DescribeRule API call error: %s", e.Err.Error())
+	}
+}
+
+// PutRuleError is an error returned when there is an error with the PutRule call
+type PutRuleError struct {
+	Err error
+	Msg string
+}
+
+// Error returns the error message
+func (e *PutRuleError) Error() string {
+	if e.Msg == "" {
+		e.Msg = "error putting event bridge rule"
+	}
+	if e.Err != nil {
+		e.Msg += ": " + e.Err.Error()
+	}
+	return e.Msg
+}
+
+// AddPermissionError is an error returned when there is an error with the AddPermission call
+type AddPermissionError struct {
+	Err error
+	Msg string
+}
+
+// Error returns the error message
+func (e *AddPermissionError) Error() string {
+	if e.Msg == "" {
+		e.Msg = "error adding IAM permission to Lambda function"
+	}
+	if e.Err != nil {
+		e.Msg += ": " + e.Err.Error()
+	}
+	return e.Msg
+}
+
+// PutTargetsError is an error returned when there is an error with the PutTargets call
+type PutTargetsError struct {
+	Err              error
+	Msg              string
+	FailedEntryCount *int32
+	FailedEntries    *[]types.PutTargetsResultEntry
+}
+
+// Error returns the error message
+func (e *PutTargetsError) Error() string {
+	if e.Msg == "" {
+		e.Msg = "error adding event bridge rule target"
+	}
+	if e.FailedEntryCount != nil {
+		e.Msg += fmt.Sprintf(": Failed Entry Count: %d", *e.FailedEntryCount)
+	}
+	if e.FailedEntries != nil {
+		e.Msg += fmt.Sprintf(": Failed Entries: %v", e.FailedEntries)
+	}
+	if e.Err != nil {
+		e.Msg += ": " + e.Err.Error()
+	}
+	return e.Msg
+}
+
 type RuleArn *string
 
 type NewEvent struct {
@@ -34,7 +134,7 @@ type EventDetails struct {
 type EventPramsOptions func(config *EventPramsConfig)
 
 type EventPramsConfig struct {
-	log         zerolog.Logger
+	log         *zerolog.Logger
 	region      string
 	profile     string
 	eventbridge *eventbridge.Client
@@ -50,7 +150,7 @@ func New(opts ...func(*EventPramsConfig)) (*EventPramsConfig, error) {
 	}
 
 	if cfg.region == "" {
-		return nil, fmt.Errorf("region is required")
+		return nil, &AWSRegionRequiredError{}
 	}
 
 	c, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
@@ -61,7 +161,7 @@ func New(opts ...func(*EventPramsConfig)) (*EventPramsConfig, error) {
 		return nil
 	})
 	if err != nil {
-		panic(err)
+		return nil, &AWSConfigError{Err: err}
 	}
 	eventbridgeSvc := eventbridge.NewFromConfig(c)
 	cfg.eventbridge = eventbridgeSvc
@@ -72,7 +172,7 @@ func New(opts ...func(*EventPramsConfig)) (*EventPramsConfig, error) {
 	return cfg, nil
 }
 
-func WithLogger(logger zerolog.Logger) EventPramsOptions {
+func WithLogger(logger *zerolog.Logger) EventPramsOptions {
 	return func(config *EventPramsConfig) {
 		config.log = logger
 	}
@@ -109,7 +209,7 @@ func (e *EventPramsConfig) PutRule(newEvent *NewEvent) (RuleArn, error) {
 		},
 	})
 	if err != nil {
-		return nil, err
+		return nil, &PutRuleError{Err: err}
 	}
 
 	_, err = e.lambda.AddPermission(context.TODO(), &lambda.AddPermissionInput{
@@ -120,7 +220,7 @@ func (e *EventPramsConfig) PutRule(newEvent *NewEvent) (RuleArn, error) {
 		StatementId:  aws.String("Rule" + newEvent.Name + "InvokeLambdaFunction"),
 	})
 	if err != nil {
-		return nil, err
+		return nil, &AddPermissionError{Err: err}
 	}
 
 	putRuleTagetResp, err := e.eventbridge.PutTargets(context.TODO(), &eventbridge.PutTargetsInput{
@@ -134,12 +234,11 @@ func (e *EventPramsConfig) PutRule(newEvent *NewEvent) (RuleArn, error) {
 		},
 	})
 	if err != nil {
-		e.log.Error().
-			Int32("FailedEntryCount", putRuleTagetResp.FailedEntryCount).
-			Err(err).
-			Str("FailedEntry", fmt.Sprintf("%v", putRuleTagetResp.FailedEntries)).
-			Msg("Error adding target to rule")
-		return nil, err
+		return nil, &PutTargetsError{
+			Err:              err,
+			FailedEntryCount: &putRuleTagetResp.FailedEntryCount,
+			FailedEntries:    &putRuleTagetResp.FailedEntries,
+		}
 	}
 
 	return putRuleResp.RuleArn, nil
@@ -150,7 +249,7 @@ func (e *EventPramsConfig) GetEventByName(name string) (*EventDetails, error) {
 		Name: aws.String(name),
 	})
 	if err != nil {
-		return nil, err
+		return nil, &DescribeRuleError{Err: err}
 	}
 
 	return &EventDetails{

@@ -7,6 +7,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/rmrfslashbin/mastopost/pkg/cmds/lambda"
 	"github.com/rmrfslashbin/mastopost/pkg/cmds/oneshot"
 	"github.com/rmrfslashbin/mastopost/pkg/config"
 	"github.com/rs/zerolog"
@@ -45,6 +46,10 @@ func (r *CfgCmd) Run(ctx *Context) error {
 }
 
 type LambdaAddCmd struct {
+	AWSProfile         string `name:"profile" help:"AWS profile to use" default:"default"`
+	AWSRegion          string `name:"region" help:"AWS region to use" default:"us-east-1"`
+	FeedName           string `name:"feedname" required:"" help:"Feed name to use"`
+	LambdaFunctionName string `name:"lambdafn" required:"" help:"Lambda function name to use"`
 }
 
 func (r *LambdaAddCmd) Run(ctx *Context) error {
@@ -61,10 +66,22 @@ func (r *LambdaInstallCmd) Run(ctx *Context) error {
 }
 
 type LambdaListCmd struct {
+	AWSProfile string  `name:"profile" help:"AWS profile to use" default:"default"`
+	AWSRegion  string  `name:"region" help:"AWS region to use" default:"us-east-1"`
+	FeedName   *string `name:"feedname" help:"Feed name to use"`
 }
 
 func (r *LambdaListCmd) Run(ctx *Context) error {
-	fmt.Println("list ")
+	l, err := lambda.NewLambda(
+		lambda.WithLogger(ctx.log),
+		lambda.WithAWSProfile(&r.AWSProfile),
+		lambda.WithAWSRegion(&r.AWSRegion),
+		lambda.WithFeedName(r.FeedName),
+	)
+	if err != nil {
+		return err
+	}
+	l.List()
 	return nil
 }
 
@@ -77,10 +94,22 @@ func (r *LambdaRemoveRmd) Run(ctx *Context) error {
 }
 
 type LambdaStatusCmd struct {
+	AWSProfile string `name:"profile" help:"AWS profile to use" default:"default"`
+	AWSRegion  string `name:"region" help:"AWS region to use" default:"us-east-1"`
+	FeedName   string `name:"feedname" required:"" help:"Feed name to use"`
 }
 
 func (r *LambdaStatusCmd) Run(ctx *Context) error {
-	fmt.Println("status ")
+	l, err := lambda.NewLambda(
+		lambda.WithLogger(ctx.log),
+		lambda.WithAWSProfile(&r.AWSProfile),
+		lambda.WithAWSRegion(&r.AWSRegion),
+		lambda.WithFeedName(&r.FeedName),
+	)
+	if err != nil {
+		return err
+	}
+	l.Status()
 	return nil
 }
 

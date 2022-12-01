@@ -62,7 +62,7 @@ func handler(ctx context.Context, message Message) error {
 	}
 
 	params, err := ssmparams.New(
-		ssmparams.WithLogger(log),
+		ssmparams.WithLogger(&log),
 		ssmparams.WithRegion(aws_region),
 	)
 	if err != nil {
