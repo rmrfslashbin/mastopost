@@ -41,14 +41,8 @@ func (e *FileNotExist) Error() string {
 
 // FeedConfig contains the configuration for a feed
 type FeedConfig struct {
-	// GOB file to store the last update time data
-	LastUpdateFile string `json:"lastupdatefile"`
-
-	// FeedURL is the URL of the RSS feed to
-	FeedURL string `json:"feedurl"`
-
-	// Instance is the URL of the Mastodon instance
-	Instance string `json:"instance"`
+	// AccessToken is the Mastodon access token
+	AccessToken string `json:"accesstoken"`
 
 	// ClientId is the Mastodon client ID
 	ClientId string `json:"clientid"`
@@ -56,8 +50,18 @@ type FeedConfig struct {
 	// ClientSecret is the Mastodon client secret
 	ClientSecret string `json:"clientsecret"`
 
-	// AccessToken is the Mastodon access token
-	AccessToken string `json:"accesstoken"`
+	// FeedURL is the URL of the RSS feed to
+	FeedURL string `json:"feedurl"`
+
+	// Instance is the URL of the Mastodon instance
+	Instance string `json:"instance"`
+
+	// GOB file to store the last update time data
+	LastUpdateFile string `json:"lastupdatefile"`
+
+	// Schedule is a valid Event Bridge ScheduleExpression
+	// https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html
+	ScheduleExpression string `json:"schedule"`
 }
 
 // LambdaFunctionConfig contains the configuration for a lambda function

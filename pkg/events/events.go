@@ -217,7 +217,7 @@ func (e *EventPramsConfig) PutRule(newEvent *NewEvent) (RuleArn, error) {
 		FunctionName: &newEvent.LambdaArn,
 		Principal:    aws.String("events.amazonaws.com"),
 		SourceArn:    putRuleResp.RuleArn,
-		StatementId:  aws.String("Rule" + newEvent.Name + "InvokeLambdaFunction"),
+		StatementId:  aws.String("Rule-" + newEvent.Name + "-InvokeLambdaFunction"),
 	})
 	if err != nil {
 		return nil, &AddPermissionError{Err: err}

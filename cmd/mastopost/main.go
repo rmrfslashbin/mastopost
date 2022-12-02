@@ -14,24 +14,38 @@ import (
 )
 
 var (
+	// homeConfigDir is the location of the user's config directory
 	homeConfigDir string
-	configFile    string
+
+	// configFile is the location of the user's config file
+	configFile string
 )
 
 const (
-	APP_NAME    = "mastopost"
+	// APP_NAME is the name of the application
+	APP_NAME = "mastopost"
+
+	// CONFIG_FILE is the name of the config file
 	CONFIG_FILE = "config.json"
 )
 
+// Context is used to pass context/global configs to the commands
 type Context struct {
-	log           *zerolog.Logger
-	configFile    *string
+	// log is the logger
+	log *zerolog.Logger
+
+	// configFile is the location of the config file
+	configFile *string
+
+	// homeConfigDir is the location of the user's config directory
 	homeConfigDir *string
 }
 
+// CfCmd prints the current config
 type CfgCmd struct {
 }
 
+// Run is the entry point for the cfg command
 func (r *CfgCmd) Run(ctx *Context) error {
 	fmt.Printf("Home config directory: %s/\n", *ctx.homeConfigDir)
 	fmt.Printf("Config file location:  %s\n\n", *ctx.configFile)
@@ -45,33 +59,69 @@ func (r *CfgCmd) Run(ctx *Context) error {
 	return nil
 }
 
-type LambdaAddCmd struct {
+// JobAddCmd adds a new job
+type JobAddCmd struct {
 	AWSProfile         string `name:"profile" help:"AWS profile to use" default:"default"`
 	AWSRegion          string `name:"region" help:"AWS region to use" default:"us-east-1"`
+	Confirm            bool   `name:"confirm" default:"false" help:"Confirm the job add (don't prompt for confirmation)"`
+	Enable             bool   `name:"enable" default:"false" help:"Enable the job after adding it"`
 	FeedName           string `name:"feedname" required:"" help:"Feed name to use"`
 	LambdaFunctionName string `name:"lambdafn" required:"" help:"Lambda function name to use"`
 }
 
-func (r *LambdaAddCmd) Run(ctx *Context) error {
-	fmt.Println("add ")
-	return nil
+// Run is the entry point for the job add command
+func (r *JobAddCmd) Run(ctx *Context) error {
+	l, err := lambda.NewLambda(
+		lambda.WithAWSProfile(&r.AWSProfile),
+		lambda.WithAWSRegion(&r.AWSRegion),
+		lambda.WithConfigFile(ctx.configFile),
+		lambda.WithFeedName(&r.FeedName),
+		lambda.WithLambdaFunctionName(&r.LambdaFunctionName),
+		lambda.WithLogger(ctx.log),
+	)
+	if err != nil {
+		return err
+	}
+	return l.Add(&lambda.AddInput{
+		Confirm: &r.Confirm,
+		Enable:  &r.Enable,
+	})
 }
 
-type LambdaInstallCmd struct {
+// JobDeleteCmd deletes a feed job
+type JobDeleteRmd struct {
+	AWSProfile         string `name:"profile" help:"AWS profile to use" default:"default"`
+	AWSRegion          string `name:"region" help:"AWS region to use" default:"us-east-1"`
+	Confirm            bool   `name:"confirm" default:"false" help:"Confirm the job add (don't prompt for confirmation)"`
+	FeedName           string `name:"feedname" required:"" help:"Feed name to use"`
+	LambdaFunctionName string `name:"lambdafn" required:"" help:"Lambda function name to use"`
 }
 
-func (r *LambdaInstallCmd) Run(ctx *Context) error {
-	fmt.Println("install ")
-	return nil
+// Run is the entry point for the job delete command
+func (r *JobDeleteRmd) Run(ctx *Context) error {
+	l, err := lambda.NewLambda(
+		lambda.WithAWSProfile(&r.AWSProfile),
+		lambda.WithAWSRegion(&r.AWSRegion),
+		lambda.WithConfigFile(ctx.configFile),
+		lambda.WithFeedName(&r.FeedName),
+		lambda.WithLambdaFunctionName(&r.LambdaFunctionName),
+		lambda.WithLogger(ctx.log),
+	)
+	if err != nil {
+		return err
+	}
+	return l.Delete(r.Confirm)
 }
 
-type LambdaListCmd struct {
+// JobListCmd lists the jobs already set up
+type JobListCmd struct {
 	AWSProfile string  `name:"profile" help:"AWS profile to use" default:"default"`
 	AWSRegion  string  `name:"region" help:"AWS region to use" default:"us-east-1"`
 	FeedName   *string `name:"feedname" help:"Feed name to use"`
 }
 
-func (r *LambdaListCmd) Run(ctx *Context) error {
+// Run is the entry point for the job list command
+func (r *JobListCmd) Run(ctx *Context) error {
 	l, err := lambda.NewLambda(
 		lambda.WithLogger(ctx.log),
 		lambda.WithAWSProfile(&r.AWSProfile),
@@ -81,25 +131,18 @@ func (r *LambdaListCmd) Run(ctx *Context) error {
 	if err != nil {
 		return err
 	}
-	l.List()
-	return nil
+	return l.List()
 }
 
-type LambdaRemoveRmd struct {
-}
-
-func (r *LambdaRemoveRmd) Run(ctx *Context) error {
-	fmt.Println("remove ")
-	return nil
-}
-
-type LambdaStatusCmd struct {
+// JobStatusCmd prints the status of a job
+type JobStatusCmd struct {
 	AWSProfile string `name:"profile" help:"AWS profile to use" default:"default"`
 	AWSRegion  string `name:"region" help:"AWS region to use" default:"us-east-1"`
 	FeedName   string `name:"feedname" required:"" help:"Feed name to use"`
 }
 
-func (r *LambdaStatusCmd) Run(ctx *Context) error {
+// Run is the entry point for the job status command
+func (r *JobStatusCmd) Run(ctx *Context) error {
 	l, err := lambda.NewLambda(
 		lambda.WithLogger(ctx.log),
 		lambda.WithAWSProfile(&r.AWSProfile),
@@ -113,12 +156,35 @@ func (r *LambdaStatusCmd) Run(ctx *Context) error {
 	return nil
 }
 
+// LambdaInstallCmd installs a new lambda function
+type LambdaInstallCmd struct {
+}
+
+// Run is the entry point for the lambda install command
+func (r *LambdaInstallCmd) Run(ctx *Context) error {
+	fmt.Println("lambda install: not yet implemented")
+	return nil
+}
+
+// LambdaUninstallCmd uninstalls a lambda function
+type LambdaUninstallCmd struct {
+}
+
+// Run is the entry point for the lambda uninstall command
+func (r *LambdaUninstallCmd) Run(ctx *Context) error {
+	fmt.Println("lambda uninstall: not yet implemented")
+	return nil
+}
+
+// OneshotCmd runs a single instance of the oneshot command to parse and post RSS feeds to Mastodon
 type OneshotCmd struct {
 	DryRun   bool   `name:"dryrun" help:"Don't actually post to Mastodon."`
 	Feedname string `name:"feedname" env:"FEED_NAME" required:"" help:"Name of the feed to post."`
 }
 
+// Run is the entry point for the oneshot command
 func (r *OneshotCmd) Run(ctx *Context) error {
+	// Set up a new oneshot struct
 	if foo, err := oneshot.NewOneshot(
 		oneshot.WithLogger(ctx.log),
 		oneshot.WithConfigFile(ctx.configFile),
@@ -127,28 +193,43 @@ func (r *OneshotCmd) Run(ctx *Context) error {
 	); err != nil {
 		return err
 	} else {
+		// Run the oneshot
 		return foo.Run()
 	}
 
 }
 
+// CLI is the main CLI struct
 type CLI struct {
+	// Global flags/args
 	LogLevel   string  `name:"loglevel" env:"LOGLEVEL" default:"info" enum:"panic,fatal,error,warn,info,debug,trace" help:"Set the log level."`
 	ConfigFile *string `name:"config" env:"CONFIG_FILE" help:"Path to the config file."`
 
-	Oneshot OneshotCmd `cmd:"" help:"Run an RSS feed parser and post to Mastodon."`
-	Lambda  struct {
-		Add    LambdaAddCmd    `cmd:"" help:"Add a new Mastopost job."`
-		Remove LambdaRemoveRmd `cmd:"" help:"Remove a Mastopost job."`
-		List   LambdaListCmd   `cmd:"" help:"List Mastopost jobs."`
-		Status LambdaStatusCmd `cmd:"" help:"Show status of Mastopost jobs."`
+	// Cfg commmand
+	Cfg CfgCmd `cmd:"" help:"Show Mastopost config details."`
+
+	// Job commands
+	Job struct {
+		Add    JobAddCmd    `cmd:"" help:"Add a new Mastopost job."`
+		Delete JobDeleteRmd `cmd:"" help:"Deletes a Mastopost job."`
+		List   JobListCmd   `cmd:"" help:"List Mastopost jobs."`
+		Status JobStatusCmd `cmd:"" help:"Show status of Mastopost jobs."`
+	} `cmd:"" help:"Manages jobs/events"`
+
+	// Lambda commands
+	Lambda struct {
+		Install   LambdaInstallCmd   `cmd:"" help:"Install a new Mastopost lambda function."`
+		Uninstall LambdaUninstallCmd `cmd:"" help:"Uninstall a Mastopost lambda function."`
 	} `cmd:"" help:"Manage the Lambda functions and events."`
 
-	Cfg CfgCmd `cmd:"" help:"Show Mastopost config details."`
+	// Oneshot command
+	Oneshot OneshotCmd `cmd:"" help:"Run an RSS feed parser and post to Mastodon."`
 }
 
+// main is the entry point for the CLI
 func main() {
 	var err error
+
 	// Set up the logger
 	log := zerolog.New(os.Stderr).With().Timestamp().Logger()
 
@@ -158,12 +239,16 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to find user config directory")
 	}
 
+	// Set up the home dir and config file locations
 	homeConfigDir = path.Join(homeConfigDir, APP_NAME)
 	configFile = path.Join(homeConfigDir, CONFIG_FILE)
 
+	// Parse the command line
 	var cli CLI
 	ctx := kong.Parse(&cli)
 
+	// Set up the logger's log level
+	// Default to info via the CLI args
 	switch cli.LogLevel {
 	case "panic":
 		log = log.Level(zerolog.PanicLevel)
@@ -181,6 +266,7 @@ func main() {
 		log = log.Level(zerolog.TraceLevel)
 	}
 
+	// Set up the config file if not provided
 	if cli.ConfigFile == nil {
 		log.Debug().
 			Str("configfile", configFile).
@@ -188,6 +274,7 @@ func main() {
 		cli.ConfigFile = &configFile
 	}
 
+	// Log some start up stuff for debugging
 	log.Debug().Msg("Starting up")
 	log.Debug().
 		Str("configfile", *cli.ConfigFile).
@@ -196,5 +283,7 @@ func main() {
 
 	// Call the Run() method of the selected parsed command.
 	err = ctx.Run(&Context{log: &log, configFile: cli.ConfigFile, homeConfigDir: &homeConfigDir})
+
+	// FatalIfErrorf terminates with an error message if err != nil
 	ctx.FatalIfErrorf(err)
 }
