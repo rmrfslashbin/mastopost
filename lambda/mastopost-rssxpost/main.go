@@ -84,7 +84,7 @@ func handler(ctx context.Context, message Message) error {
 			fmt.Printf("mtime:   %s\n", *p.LastModifiedDate)
 			fmt.Printf("Version: %d\n", p.Version)
 			fmt.Printf("ARN:     %s\n", *p.ARN)
-			key := strings.TrimPrefix(path, *p.Name)
+			key := strings.TrimPrefix(*p.Name, path)
 			switch key {
 			case "mastodon/instanceUrl":
 				if instanceUrl, err := url.Parse(*p.Value); err != nil {
@@ -102,6 +102,7 @@ func handler(ctx context.Context, message Message) error {
 				if feedUrl, err := url.Parse(*p.Value); err != nil {
 					return err
 				} else {
+					fmt.Printf("Got feedUrl: %s\n", feedUrl.String())
 					config.feedUrl = feedUrl
 				}
 			case "runtime/lastUpdated":
@@ -112,6 +113,8 @@ func handler(ctx context.Context, message Message) error {
 				if t, err := time.Parse(time.RFC3339, *p.Value); err == nil {
 					config.lastPublished = &t
 				}
+			default:
+				log.Warn().Str("key", key).Msg("unknown key")
 			}
 		}
 
