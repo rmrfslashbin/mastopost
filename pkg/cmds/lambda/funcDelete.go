@@ -5,7 +5,9 @@ import (
 	"strings"
 
 	"github.com/rmrfslashbin/mastopost/pkg/config"
+	"github.com/rmrfslashbin/mastopost/pkg/events"
 	"github.com/rmrfslashbin/mastopost/pkg/ssmparams"
+	"github.com/rs/zerolog/log"
 )
 
 // Delete removes a job and configs
@@ -72,6 +74,17 @@ func (l *LambdaConfig) Delete(confirm bool) error {
 		return err
 	}
 
+	eb, err := events.New(
+		events.WithLogger(l.log),
+		events.WithProfile(*l.awsprofile),
+		events.WithRegion(*l.awsregion),
+	)
+	if err != nil {
+		log.Error().Msg("failed to create eventbridge client")
+		return err
+
+	}
+
 	/*
 		/mastopost/${feedname}/mastodon/instanceUrl
 		/mastopost/${feedname}/mastodon/clientId
@@ -97,6 +110,14 @@ func (l *LambdaConfig) Delete(confirm bool) error {
 	} else {
 		l.log.Info().Msgf("Deleted %d parameters", len(paramNames))
 	}
+
+	if err := eb.DeleteRule(&events.DeleteRuleInput{
+		FeedName:    l.feedName,
+		FunctionArn: &lambdaFunctionArn,
+	}); err != nil {
+		return &EventBridgeDeleteError{Err: err}
+	}
+	l.log.Info().Msgf("Deleted event")
 
 	return nil
 }

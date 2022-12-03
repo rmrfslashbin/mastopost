@@ -39,6 +39,23 @@ func (e *AWSConfigError) Error() string {
 	}
 }
 
+// DeleteRuleError is an error returned when there is an error deleting a rule
+type DeleteRuleError struct {
+	Err error
+	Msg string
+}
+
+// Error returns the error message
+func (e *DeleteRuleError) Error() string {
+	if e.Msg == "" {
+		e.Msg = "error deleting AWS rule"
+	}
+	if e.Err != nil {
+		e.Msg += ": " + e.Err.Error()
+	}
+	return e.Msg
+}
+
 // DescribeRuleError is an error returned when there is an error with the DescribeRule API call
 type DescribeRuleError struct {
 	Err error
@@ -63,6 +80,23 @@ type PutRuleError struct {
 func (e *PutRuleError) Error() string {
 	if e.Msg == "" {
 		e.Msg = "error putting event bridge rule"
+	}
+	if e.Err != nil {
+		e.Msg += ": " + e.Err.Error()
+	}
+	return e.Msg
+}
+
+// RemovePermissionError is an error returned when there is an error with the RemovePermission call
+type RemovePermissionError struct {
+	Err error
+	Msg string
+}
+
+// Error returns the error message
+func (e *RemovePermissionError) Error() string {
+	if e.Msg == "" {
+		e.Msg = "error removing lambda permission"
 	}
 	if e.Err != nil {
 		e.Msg += ": " + e.Err.Error()
@@ -105,6 +139,21 @@ func (e *PutTargetsError) Error() string {
 	}
 	if e.FailedEntries != nil {
 		e.Msg += fmt.Sprintf(": Failed Entries: %v", e.FailedEntries)
+	}
+	if e.Err != nil {
+		e.Msg += ": " + e.Err.Error()
+	}
+	return e.Msg
+}
+
+type RemoveTargetsError struct {
+	Err error
+	Msg string
+}
+
+func (e *RemoveTargetsError) Error() string {
+	if e.Msg == "" {
+		e.Msg = "error removing event bridge rule target"
 	}
 	if e.Err != nil {
 		e.Msg += ": " + e.Err.Error()
@@ -190,6 +239,54 @@ func WithRegion(region string) EventPramsOptions {
 	}
 }
 
+func (e *EventPramsConfig) GetEventByName(name string) (*EventDetails, error) {
+	resp, err := e.eventbridge.DescribeRule(context.TODO(), &eventbridge.DescribeRuleInput{
+		Name: aws.String(name),
+	})
+	if err != nil {
+		return nil, &DescribeRuleError{Err: err}
+	}
+
+	return &EventDetails{
+		Arn:                *resp.Arn,
+		Description:        *resp.Description,
+		Name:               *resp.Name,
+		ScheduleExpression: *resp.ScheduleExpression,
+		State:              resp.State == types.RuleStateEnabled,
+	}, nil
+}
+
+type DeleteRuleInput struct {
+	FunctionArn *string
+	FeedName    *string
+}
+
+func (e *EventPramsConfig) DeleteRule(input *DeleteRuleInput) error {
+	if _, err := e.lambda.RemovePermission(context.TODO(), &lambda.RemovePermissionInput{
+		FunctionName: aws.String(*input.FunctionArn),
+		StatementId:  aws.String("Rule-" + *input.FeedName + "-InvokeLambdaFunction"),
+	}); err != nil {
+		return &RemovePermissionError{Err: err}
+	}
+
+	if _, err := e.eventbridge.RemoveTargets(context.TODO(), &eventbridge.RemoveTargetsInput{
+		Ids:   []string{*input.FeedName},
+		Rule:  input.FeedName,
+		Force: true,
+	}); err != nil {
+		return &RemoveTargetsError{Err: err}
+	}
+
+	if _, err := e.eventbridge.DeleteRule(context.TODO(), &eventbridge.DeleteRuleInput{
+		Name:  input.FeedName,
+		Force: true,
+	}); err != nil {
+		return &DeleteRuleError{Err: err}
+	}
+
+	return nil
+}
+
 func (e *EventPramsConfig) PutRule(newEvent *NewEvent) (RuleArn, error) {
 	// Disable the rule by default
 	var enabled types.RuleState
@@ -242,21 +339,4 @@ func (e *EventPramsConfig) PutRule(newEvent *NewEvent) (RuleArn, error) {
 	}
 
 	return putRuleResp.RuleArn, nil
-}
-
-func (e *EventPramsConfig) GetEventByName(name string) (*EventDetails, error) {
-	resp, err := e.eventbridge.DescribeRule(context.TODO(), &eventbridge.DescribeRuleInput{
-		Name: aws.String(name),
-	})
-	if err != nil {
-		return nil, &DescribeRuleError{Err: err}
-	}
-
-	return &EventDetails{
-		Arn:                *resp.Arn,
-		Description:        *resp.Description,
-		Name:               *resp.Name,
-		ScheduleExpression: *resp.ScheduleExpression,
-		State:              resp.State == types.RuleStateEnabled,
-	}, nil
 }

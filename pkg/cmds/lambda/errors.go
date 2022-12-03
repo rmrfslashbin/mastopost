@@ -29,6 +29,22 @@ func (e *AWSRegionRequiredError) Error() string {
 	return e.Err.Error()
 }
 
+type EventBridgeDeleteError struct {
+	Msg string
+	Err error
+}
+
+// Error returns the error message
+func (e *EventBridgeDeleteError) Error() string {
+	if e.Msg == "" {
+		e.Msg = "error deleting AWS EventBridge rule"
+	}
+	if e.Err != nil {
+		e.Msg += ": " + e.Err.Error()
+	}
+	return e.Msg
+}
+
 // FeedLoadError is returned when a feed cannot be loaded
 type FeedLoadError struct {
 	Err error
