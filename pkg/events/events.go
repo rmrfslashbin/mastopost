@@ -328,9 +328,10 @@ func (e *EventPramsConfig) InstallLambdaFunction(input *InstallLambdaFunctionInp
 		return nil, &ReadLambdaZipError{Err: err}
 	}
 
+	roleName := "role-mastopost-lambda-" + *input.FunctionName
 	role, err := e.iam.CreateRole(context.TODO(), &iam.CreateRoleInput{
 		AssumeRolePolicyDocument: aws.String(`{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": {"Service": "lambda.amazonaws.com"},"Action": "sts:AssumeRole"}]}`),
-		RoleName:                 aws.String("role-mastopost-lambda-" + *input.FunctionName),
+		RoleName:                 aws.String(roleName),
 		Description:              aws.String("Role for mastopost lambda function: " + *input.FunctionName),
 	})
 	if err != nil {
@@ -348,14 +349,14 @@ func (e *EventPramsConfig) InstallLambdaFunction(input *InstallLambdaFunctionInp
 
 	if _, err := e.iam.AttachRolePolicy(context.TODO(), &iam.AttachRolePolicyInput{
 		PolicyArn: policy.Policy.Arn,
-		RoleName:  role.Role.Arn,
+		RoleName:  aws.String(roleName),
 	}); err != nil {
 		return nil, &AttachRolePolicyError{Err: err}
 	}
 
 	if _, err := e.iam.AttachRolePolicy(context.TODO(), &iam.AttachRolePolicyInput{
 		PolicyArn: aws.String("arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"),
-		RoleName:  role.Role.Arn,
+		RoleName:  aws.String(roleName),
 	}); err != nil {
 		return nil, &AttachRolePolicyError{Err: err}
 	}

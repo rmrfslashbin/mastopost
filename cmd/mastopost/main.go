@@ -163,7 +163,7 @@ type LambdaInstallCmd struct {
 	AWSProfile   string `name:"profile" help:"AWS profile to use" default:"default"`
 	AWSRegion    string `name:"region" help:"AWS region to use" default:"us-east-1"`
 	FunctionName string `name:"functionname" required:"" help:"Lambda function name to use"`
-	ZipFile      string `name:"zipfile" required:"" help:"Zip file to use"`
+	ZipFile      string `name:"zipfile" required:"" existingfile:"" help:"Zip file to use"`
 }
 
 // Run is the entry point for the lambda install command

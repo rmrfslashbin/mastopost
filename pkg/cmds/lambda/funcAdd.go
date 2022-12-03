@@ -79,6 +79,8 @@ func (l *LambdaConfig) Add(addInput *AddInput) error {
 		fmt.Printf("Mastodon access token:   %s\n", feedConfig.AccessToken)
 		fmt.Printf("AWS profile:             %s\n", *l.awsprofile)
 		fmt.Printf("AWS region:              %s\n", *l.awsregion)
+		fmt.Printf("Lambda function name:    %s\n", *l.lambdaFunctionName)
+		fmt.Printf("Lambda function ARN:     %s\n", lambdaFunctionArn)
 		fmt.Printf("Enable:                  %t\n", enable)
 		fmt.Print("Confirm adding new config? (y/n): ")
 		var userConfirm string
