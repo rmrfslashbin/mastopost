@@ -160,12 +160,26 @@ func (r *JobStatusCmd) Run(ctx *Context) error {
 
 // LambdaInstallCmd installs a new lambda function
 type LambdaInstallCmd struct {
+	AWSProfile   string `name:"profile" help:"AWS profile to use" default:"default"`
+	AWSRegion    string `name:"region" help:"AWS region to use" default:"us-east-1"`
+	FunctionName string `name:"functionname" required:"" help:"Lambda function name to use"`
+	ZipFile      string `name:"zipfile" required:"" help:"Zip file to use"`
 }
 
 // Run is the entry point for the lambda install command
 func (r *LambdaInstallCmd) Run(ctx *Context) error {
-	fmt.Println("lambda install: not yet implemented")
-	return nil
+	l, err := lambda.NewLambda(
+		lambda.WithLogger(ctx.log),
+		lambda.WithAWSProfile(&r.AWSProfile),
+		lambda.WithAWSRegion(&r.AWSRegion),
+		lambda.WithConfigFile(ctx.configFile),
+		lambda.WithLambdaFunctionName(&r.FunctionName),
+		lambda.WithZipFilename(&r.ZipFile),
+	)
+	if err != nil {
+		return err
+	}
+	return l.Install()
 }
 
 // LambdaUninstallCmd uninstalls a lambda function

@@ -18,6 +18,7 @@ type LambdaConfig struct {
 	dryrun             bool
 	feedName           *string
 	lambdaFunctionName *string
+	zipfilename        *string
 	log                *zerolog.Logger
 }
 
@@ -98,5 +99,12 @@ func WithLambdaFunctionName(lambdaFunctionName *string) LambdaOptions {
 func WithLogger(log *zerolog.Logger) LambdaOptions {
 	return func(config *LambdaConfig) {
 		config.log = log
+	}
+}
+
+// WithZipFilename sets the zip filename to use
+func WithZipFilename(zipfilename *string) LambdaOptions {
+	return func(config *LambdaConfig) {
+		config.zipfilename = zipfilename
 	}
 }
