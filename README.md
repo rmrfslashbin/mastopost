@@ -23,8 +23,13 @@ The CLI tool is a monolithic binary to run and manage the Mastopost application.
 - Move the json file to the default location, or explicitly set the `--config` flag.
 - cfg: print the default location of the config file. This is the location the CLI will look for the config file, unless the `--config` flag is set.
 - oneshot: Run the application once. This is useful to run the application locally or via a cron job.
-- more to come...
-
+- job: job management commands. Run `mastopost job --help` for usage information.
+  - add: Add a job to AWS Event Bridge.
+  - delete: Delete a job from AWS Event Bridge.
+  - list: List jobs in AWS Event Bridge.
+  - status: Get the status of a job in AWS Event Bridge. Also enable or disable a job.
+- lambda: manage lambda functions (not yet implemented).
+  
 ### CLI Configuration
 The CLI config file is JSON file with the following structure:
 
@@ -37,7 +42,8 @@ The CLI config file is JSON file with the following structure:
             "clientid": "mastodon_client_id",
             "clientsecret": "mastodon_client_secret",
             "accesstoken": "mastodon_access_token",
-            "instance": "https://mastodon.example.com"
+            "instance": "https://mastodon.example.com",
+            "schedule": "rate(30 minutes)"
         },
         "arstechnica": {
             "lastupdatefile": "/Users/user/Library/Application Support/mastopost/arstechnica.gob",
@@ -45,7 +51,8 @@ The CLI config file is JSON file with the following structure:
             "clientid": "mastodon_client_id",
             "clientsecret": "mastodon_client_secret",
             "accesstoken": "mastodon_access_token",
-            "instance": "https://mastodon.example.com"
+            "instance": "https://mastodon.example.com",
+            "schedule": "rate(30 minutes)"
         }
     },
     "lambdaFunctions": {
@@ -55,12 +62,13 @@ The CLI config file is JSON file with the following structure:
     }
 }
 ```
-- `feeds`: A map of feed names to feed configuration. The name of the feed is arbitrary and is used to identify the feed in the config file.
-  - `lastupdatefile`: The path to a file to store the last update time. This is used to determine if a feed item has been posted to Mastodon.
+- `feeds`: REQUIRED: A map of feed names to feed configuration. The name of the feed is arbitrary and is used to identify the feed in the config file.
+  - `lastupdatefile`: (Optional if not using oneshot): The path to a file to store the last update time. This is used to determine if a feed item has been posted to Mastodon.
   - `feedurl`: The URL of the RSS feed.
   - `clientid`: The Mastodon client ID.
   - `clientsecret`: The Mastodon client secret.
   - `accesstoken`: The Mastodon access token.
   - `instance`: The Mastodon instance URL.
-- `lambdaFunctions`: A map of Lambda function names to Lambda function configuration. The name of the function is arbitrary and is used to identify the function in the config file.
+  - `schedule`: (Optional if only using oneshot): The AWS Event Bridge schedule expression. See [AWS Event Bridge Schedule Expressions](https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html) for more information.
+- `lambdaFunctions`: OPTIONAL (if only running oneshot): A map of Lambda function names to Lambda function configuration. The name of the function is arbitrary and is used to identify the function in the config file.
   - `functionArn`: The ARN of the Lambda function.

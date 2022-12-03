@@ -6,7 +6,8 @@
             "clientid": "mastodon_client_id",
             "clientsecret": "mastodon_client_secret",
             "accesstoken": "mastodon_access_token",
-            "instance": "https://mastodon.example.com"
+            "instance": "https://mastodon.example.com",
+            "schedule": "rate(30 minutes)"
         },
         "arstechnica": {
             "lastupdatefile": "/Users/user/Library/Application Support/mastopost/arstechnica.gob",
@@ -14,7 +15,8 @@
             "clientid": "mastodon_client_id",
             "clientsecret": "mastodon_client_secret",
             "accesstoken": "mastodon_access_token",
-            "instance": "https://nifty-moose.com"
+            "instance": "https://nifty-moose.com",
+            "schedule": "rate(30 minutes)"
         }
     },
     "lambdaFunctions": {
