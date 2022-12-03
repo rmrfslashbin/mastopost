@@ -12,153 +12,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// AWSRegionRequiredError is returned when AWS Region is not set
-type AWSRegionRequiredError struct {
-	Err error
-}
-
-// Error returns the error message
-func (e *AWSRegionRequiredError) Error() string {
-	if e.Err == nil {
-		return "AWS Region is required. Use WithRegion() to set it."
-	}
-	return e.Err.Error()
-}
-
-// AWSConfigError is an error returned when there is an error with the AWS Config
-type AWSConfigError struct {
-	Err error
-}
-
-// Error returns the error message
-func (e *AWSConfigError) Error() string {
-	if e.Err == nil {
-		return "AWS Config error"
-	} else {
-		return fmt.Sprintf("AWS Config error: %s", e.Err.Error())
-	}
-}
-
-// DeleteRuleError is an error returned when there is an error deleting a rule
-type DeleteRuleError struct {
-	Err error
-	Msg string
-}
-
-// Error returns the error message
-func (e *DeleteRuleError) Error() string {
-	if e.Msg == "" {
-		e.Msg = "error deleting AWS rule"
-	}
-	if e.Err != nil {
-		e.Msg += ": " + e.Err.Error()
-	}
-	return e.Msg
-}
-
-// DescribeRuleError is an error returned when there is an error with the DescribeRule API call
-type DescribeRuleError struct {
-	Err error
-}
-
-// Error returns the error message
-func (e *DescribeRuleError) Error() string {
-	if e.Err == nil {
-		return "EventBridge DescribeRule API call error"
-	} else {
-		return fmt.Sprintf("EventBridge DescribeRule API call error: %s", e.Err.Error())
-	}
-}
-
-// PutRuleError is an error returned when there is an error with the PutRule call
-type PutRuleError struct {
-	Err error
-	Msg string
-}
-
-// Error returns the error message
-func (e *PutRuleError) Error() string {
-	if e.Msg == "" {
-		e.Msg = "error putting event bridge rule"
-	}
-	if e.Err != nil {
-		e.Msg += ": " + e.Err.Error()
-	}
-	return e.Msg
-}
-
-// RemovePermissionError is an error returned when there is an error with the RemovePermission call
-type RemovePermissionError struct {
-	Err error
-	Msg string
-}
-
-// Error returns the error message
-func (e *RemovePermissionError) Error() string {
-	if e.Msg == "" {
-		e.Msg = "error removing lambda permission"
-	}
-	if e.Err != nil {
-		e.Msg += ": " + e.Err.Error()
-	}
-	return e.Msg
-}
-
-// AddPermissionError is an error returned when there is an error with the AddPermission call
-type AddPermissionError struct {
-	Err error
-	Msg string
-}
-
-// Error returns the error message
-func (e *AddPermissionError) Error() string {
-	if e.Msg == "" {
-		e.Msg = "error adding IAM permission to Lambda function"
-	}
-	if e.Err != nil {
-		e.Msg += ": " + e.Err.Error()
-	}
-	return e.Msg
-}
-
-// PutTargetsError is an error returned when there is an error with the PutTargets call
-type PutTargetsError struct {
-	Err              error
-	Msg              string
-	FailedEntryCount *int32
-	FailedEntries    *[]types.PutTargetsResultEntry
-}
-
-// Error returns the error message
-func (e *PutTargetsError) Error() string {
-	if e.Msg == "" {
-		e.Msg = "error adding event bridge rule target"
-	}
-	if e.FailedEntryCount != nil {
-		e.Msg += fmt.Sprintf(": Failed Entry Count: %d", *e.FailedEntryCount)
-	}
-	if e.FailedEntries != nil {
-		e.Msg += fmt.Sprintf(": Failed Entries: %v", e.FailedEntries)
-	}
-	if e.Err != nil {
-		e.Msg += ": " + e.Err.Error()
-	}
-	return e.Msg
-}
-
-type RemoveTargetsError struct {
-	Err error
-	Msg string
-}
-
-func (e *RemoveTargetsError) Error() string {
-	if e.Msg == "" {
-		e.Msg = "error removing event bridge rule target"
-	}
-	if e.Err != nil {
-		e.Msg += ": " + e.Err.Error()
-	}
-	return e.Msg
+type DeleteRuleInput struct {
+	FunctionName *string
+	FunctionArn  *string
+	FeedName     *string
 }
 
 type RuleArn *string
@@ -239,6 +96,57 @@ func WithRegion(region string) EventPramsOptions {
 	}
 }
 
+func (e *EventPramsConfig) DeleteRule(input *DeleteRuleInput) error {
+	if _, err := e.lambda.RemovePermission(context.TODO(), &lambda.RemovePermissionInput{
+		FunctionName: aws.String(*input.FunctionArn),
+		StatementId:  aws.String("mastopost-" + *input.FeedName + "-InvokeLambdaFunction"),
+	}); err != nil {
+		return &RemovePermissionError{Err: err}
+	}
+
+	ruleName := "mastopost-" + *input.FeedName
+	if opt, err := e.eventbridge.RemoveTargets(context.TODO(), &eventbridge.RemoveTargetsInput{
+		Ids:   []string{ruleName},
+		Rule:  aws.String(ruleName),
+		Force: true,
+	}); err != nil {
+		return &RemoveTargetsError{
+			Err:              err,
+			FailedEntryCount: &opt.FailedEntryCount,
+			FailedEntries:    &opt.FailedEntries,
+		}
+	}
+
+	if _, err := e.eventbridge.DeleteRule(context.TODO(), &eventbridge.DeleteRuleInput{
+		Name:  aws.String(ruleName),
+		Force: true,
+	}); err != nil {
+		return &DeleteRuleError{Err: err}
+	}
+
+	return nil
+}
+
+func (e *EventPramsConfig) DisableRule(name string) error {
+	if _, err := e.eventbridge.DisableRule(context.TODO(), &eventbridge.DisableRuleInput{
+		Name: aws.String(name),
+	}); err != nil {
+		return &DisableRuleError{Err: err}
+	}
+
+	return nil
+}
+
+func (e *EventPramsConfig) EnableRule(name string) error {
+	if _, err := e.eventbridge.EnableRule(context.TODO(), &eventbridge.EnableRuleInput{
+		Name: aws.String(name),
+	}); err != nil {
+		return &EnableRuleError{Err: err}
+	}
+
+	return nil
+}
+
 func (e *EventPramsConfig) GetEventByName(name string) (*EventDetails, error) {
 	resp, err := e.eventbridge.DescribeRule(context.TODO(), &eventbridge.DescribeRuleInput{
 		Name: aws.String(name),
@@ -254,37 +162,6 @@ func (e *EventPramsConfig) GetEventByName(name string) (*EventDetails, error) {
 		ScheduleExpression: *resp.ScheduleExpression,
 		State:              resp.State == types.RuleStateEnabled,
 	}, nil
-}
-
-type DeleteRuleInput struct {
-	FunctionArn *string
-	FeedName    *string
-}
-
-func (e *EventPramsConfig) DeleteRule(input *DeleteRuleInput) error {
-	if _, err := e.lambda.RemovePermission(context.TODO(), &lambda.RemovePermissionInput{
-		FunctionName: aws.String(*input.FunctionArn),
-		StatementId:  aws.String("Rule-" + *input.FeedName + "-InvokeLambdaFunction"),
-	}); err != nil {
-		return &RemovePermissionError{Err: err}
-	}
-
-	if _, err := e.eventbridge.RemoveTargets(context.TODO(), &eventbridge.RemoveTargetsInput{
-		Ids:   []string{*input.FeedName},
-		Rule:  input.FeedName,
-		Force: true,
-	}); err != nil {
-		return &RemoveTargetsError{Err: err}
-	}
-
-	if _, err := e.eventbridge.DeleteRule(context.TODO(), &eventbridge.DeleteRuleInput{
-		Name:  input.FeedName,
-		Force: true,
-	}); err != nil {
-		return &DeleteRuleError{Err: err}
-	}
-
-	return nil
 }
 
 func (e *EventPramsConfig) PutRule(newEvent *NewEvent) (RuleArn, error) {
@@ -314,7 +191,7 @@ func (e *EventPramsConfig) PutRule(newEvent *NewEvent) (RuleArn, error) {
 		FunctionName: &newEvent.LambdaArn,
 		Principal:    aws.String("events.amazonaws.com"),
 		SourceArn:    putRuleResp.RuleArn,
-		StatementId:  aws.String("Rule-" + newEvent.Name + "-InvokeLambdaFunction"),
+		StatementId:  aws.String(newEvent.Name + "-InvokeLambdaFunction"),
 	})
 	if err != nil {
 		return nil, &AddPermissionError{Err: err}

@@ -55,6 +55,7 @@ func (l *LambdaConfig) Delete(confirm bool) error {
 		fmt.Printf("Schedule Expression:     %s\n", feedConfig.ScheduleExpression)
 		fmt.Printf("RSS feed URL:            %s\n", feedConfig.FeedURL)
 		fmt.Printf("Mastodon instance:       %s\n", feedConfig.Instance)
+		fmt.Printf("Lambda function name:    %s\n", *l.lambdaFunctionName)
 		fmt.Printf("AWS profile:             %s\n", *l.awsprofile)
 		fmt.Printf("AWS region:              %s\n", *l.awsregion)
 		fmt.Print("Confirm delete of config? (y/n): ")
@@ -112,8 +113,9 @@ func (l *LambdaConfig) Delete(confirm bool) error {
 	}
 
 	if err := eb.DeleteRule(&events.DeleteRuleInput{
-		FeedName:    l.feedName,
-		FunctionArn: &lambdaFunctionArn,
+		FunctionName: l.lambdaFunctionName,
+		FeedName:     l.feedName,
+		FunctionArn:  &lambdaFunctionArn,
 	}); err != nil {
 		return &EventBridgeDeleteError{Err: err}
 	}

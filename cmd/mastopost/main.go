@@ -139,6 +139,8 @@ type JobStatusCmd struct {
 	AWSProfile string `name:"profile" help:"AWS profile to use" default:"default"`
 	AWSRegion  string `name:"region" help:"AWS region to use" default:"us-east-1"`
 	FeedName   string `name:"feedname" required:"" help:"Feed name to use"`
+	Enable     *bool  `name:"enable" xor:"Change State" group:"Change State" help:"Enable the job after adding it"`
+	Disable    *bool  `name:"disable" xor:"Change State" group:"Change State" help:"Disable the job after adding it"`
 }
 
 // Run is the entry point for the job status command
@@ -148,12 +150,12 @@ func (r *JobStatusCmd) Run(ctx *Context) error {
 		lambda.WithAWSProfile(&r.AWSProfile),
 		lambda.WithAWSRegion(&r.AWSRegion),
 		lambda.WithFeedName(&r.FeedName),
+		lambda.WithConfigFile(ctx.configFile),
 	)
 	if err != nil {
 		return err
 	}
-	l.Status()
-	return nil
+	return l.Status(&lambda.StatusInput{Enable: r.Enable, Disable: r.Disable})
 }
 
 // LambdaInstallCmd installs a new lambda function
