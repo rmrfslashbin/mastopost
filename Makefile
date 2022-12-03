@@ -35,6 +35,7 @@ deploy: lambda-build
 
 lambda-build:
 	GOOS=linux GOARCH=arm64 go build -o bin/mastopost-lambda-rssxpost/bootstrap lambda/mastopost-rssxpost/main.go
+	zip -j bin/mastopost-lambda-rssxpost.zip bin/mastopost-lambda-rssxpost/bootstrap
 
 cfdescribe:
 	aws --profile $(aws_profile) cloudformation describe-stack-events --stack-name $(stack_name)
