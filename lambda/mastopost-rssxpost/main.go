@@ -79,11 +79,13 @@ func handler(ctx context.Context, message Message) error {
 		}
 
 		for _, p := range opt.Parameters {
-			fmt.Printf("Name:    %s\n", *p.Name)
-			fmt.Printf("Value:   %s\n", *p.Value)
-			fmt.Printf("mtime:   %s\n", *p.LastModifiedDate)
-			fmt.Printf("Version: %d\n", p.Version)
-			fmt.Printf("ARN:     %s\n", *p.ARN)
+			log.Info().
+				Str("name", *p.Name).
+				Str("value", *p.Value).
+				Str("modified", p.LastModifiedDate.String()).
+				Int64("version", p.Version).
+				Str("Arn", *p.ARN).
+				Msg("found parameter")
 			key := strings.TrimPrefix(*p.Name, path)
 			switch key {
 			case "mastodon/instanceUrl":
@@ -102,7 +104,6 @@ func handler(ctx context.Context, message Message) error {
 				if feedUrl, err := url.Parse(*p.Value); err != nil {
 					return err
 				} else {
-					fmt.Printf("Got feedUrl: %s\n", feedUrl.String())
 					config.feedUrl = feedUrl
 				}
 			case "runtime/lastUpdated":
