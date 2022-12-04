@@ -6,6 +6,7 @@ Mastopost is a flexible tool to post RSS, ATOM, and JSON feed items to Mastodon.
 
 ## Upstream Projects
 Mastopost is built using the following projects:
+- https://github.com/alecthomas/kong: Command line argument parsing
 - https://github.com/mmcdole/gofeed: "The gofeed library is a robust feed parser that supports parsing both RSS, Atom and JSON feeds."
 - https://github.com/iancoleman/strcase: "strcase is a go package for converting string case to various cases (e.g. snake case or camel case)..."
 - https://github.com/mattn/go-mastodon: go-mastodon is a Go client library for Mastodon API.
