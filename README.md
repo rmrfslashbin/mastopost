@@ -22,13 +22,16 @@ The CLI tool is a monolithic binary to run and manage the Mastopost application.
 - Copy `config.DIST.json` to `config.json` and edit as needed.
 - Move the json file to the default location, or explicitly set the `--config` flag.
 - cfg: print the default location of the config file. This is the location the CLI will look for the config file, unless the `--config` flag is set.
-- oneshot: Run the application once. This is useful to run the application locally or via a cron job.
-- job: job management commands. Run `mastopost job --help` for usage information.
-  - add: Add a job to AWS Event Bridge.
-  - delete: Delete a job from AWS Event Bridge.
-  - list: List jobs in AWS Event Bridge.
-  - status: Get the status of a job in AWS Event Bridge. Also enable or disable a job.
-- lambda: manage lambda functions (not yet implemented).
+- rss-xpost: Post RSS feed items to Mastodon.
+  - oneshot: Run the application once. This is useful to run the application locally or via a cron job.
+  - job: job management commands. Run `mastopost job --help` for usage information.
+    - add: Add a job to AWS Event Bridge.
+    - delete: Delete a job from AWS Event Bridge.
+    - list: List jobs in AWS Event Bridge.
+    - status: Get the status of a job in AWS Event Bridge. Also enable or disable a job.
+- lambda: manage lambda functions.
+  - install: Install the lambda function to AWS Lambda.
+  - uninstall: Uninstall the lambda function from AWS Lambda.
   
 ### CLI Configuration
 The CLI config file is JSON file with the following structure:
@@ -57,7 +60,8 @@ The CLI config file is JSON file with the following structure:
     },
     "lambdaFunctions": {
         "mastopost-rss-crossposter": {
-            "functionArn": "arn:aws:lambda:us-east-1:xxxxxxxxxxxx:function:mastopost-rss-crossposter"
+            "functionArn": "arn:aws:lambda:us-east-1:xxxxxxxxxxxx:function:mastopost-rss-crossposter",
+            "policyArn": "arn:aws:iam::xxxxxxxxxxxx:policy/policy-mastopost-rss-crossposter"
         }
     }
 }

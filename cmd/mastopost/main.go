@@ -249,9 +249,6 @@ type CLI struct {
 		Oneshot RssXPostOneshotCmd `cmd:"" help:"Run an RSS feed parser and post to Mastodon."`
 	} `cmd:"" help:"RSS cross-posting commands."`
 
-	CalPost struct {
-	} `cmd:"" help:"Calendar cross-posting commands."`
-
 	// Lambda commands
 	Lambda struct {
 		Install   LambdaInstallCmd   `cmd:"" help:"Install a new Mastopost lambda function."`

@@ -15,13 +15,14 @@
             "clientid": "mastodon_client_id",
             "clientsecret": "mastodon_client_secret",
             "accesstoken": "mastodon_access_token",
-            "instance": "https://nifty-moose.com",
+            "instance": "https://mastodon.example.com",
             "schedule": "rate(30 minutes)"
         }
     },
     "lambdaFunctions": {
         "mastopost-rss-crossposter": {
-            "functionArn": "arn:aws:lambda:us-east-1:xxxxxxxxxxxx:function:mastopost-rss-crossposter"
+            "functionArn": "arn:aws:lambda:us-east-1:xxxxxxxxxxxx:function:mastopost-rss-crossposter",
+            "policyArn": "arn:aws:iam::xxxxxxxxxxxx:policy/policy-mastopost-rss-crossposter"
         }
     }
 }
