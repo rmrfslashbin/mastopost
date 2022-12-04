@@ -3,7 +3,7 @@ package events
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"time"
 
@@ -376,7 +376,7 @@ func (e *EventPramsConfig) InstallLambdaFunction(input *InstallLambdaFunctionInp
 		return nil, &OpenLambdaZipError{Err: err, Filename: *input.FunctionZipFilename}
 	}
 	defer fh.Close()
-	zipfile, err := ioutil.ReadAll(fh)
+	zipfile, err := io.ReadAll(fh)
 	if err != nil {
 		return nil, &ReadLambdaZipError{Err: err}
 	}
