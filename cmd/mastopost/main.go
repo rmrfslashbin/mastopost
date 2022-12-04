@@ -7,7 +7,6 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/rmrfslashbin/mastopost/pkg/cmds/calxpost/cpos"
 	"github.com/rmrfslashbin/mastopost/pkg/cmds/lambda"
 	"github.com/rmrfslashbin/mastopost/pkg/cmds/oneshot"
 	"github.com/rmrfslashbin/mastopost/pkg/config"
@@ -60,6 +59,7 @@ func (r *CfgCmd) Run(ctx *Context) error {
 	return nil
 }
 
+/*
 // CalPostOneShotCmd is the command for posting a single calendar event
 type CalPostOneShotCmd struct {
 	DryRun   bool   `name:"dryrun" help:"Don't actually post to Mastodon."`
@@ -80,6 +80,7 @@ func (r *CalPostOneShotCmd) Run(ctx *Context) error {
 		return foo.Run()
 	}
 }
+*/
 
 // RssXPostJobAddCmd adds a new job
 type RssXPostJobAddCmd struct {
@@ -270,9 +271,11 @@ type CLI struct {
 		Oneshot RssXPostOneshotCmd `cmd:"" help:"Run an RSS feed parser and post to Mastodon."`
 	} `cmd:"" help:"RSS cross-posting commands."`
 
-	CalPost struct {
-		Oneshot CalPostOneShotCmd `cmd:"" help:"Run a calendar parser and post to Mastodon."`
-	} `cmd:"" help:"Calendar cross-posting commands."`
+	/*
+		CalPost struct {
+			Oneshot CalPostOneShotCmd `cmd:"" help:"Run a calendar parser and post to Mastodon."`
+		} `cmd:"" help:"Calendar cross-posting commands."`
+	*/
 
 	// Lambda commands
 	Lambda struct {

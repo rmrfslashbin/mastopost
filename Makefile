@@ -4,7 +4,7 @@
 stack_name = mastopost
 
 build:
-	@printf "  building mastopost-cli:\n"
+	@printf "  building mastopost:\n"
 	@printf "    linux  :: arm64"
 	@GOOS=linux GOARCH=arm64 go build -o bin/mastopost-linux-arm64 cmd/mastopost/main.go
 	@printf " done.\n"
@@ -17,6 +17,13 @@ build:
 	@printf "    darwin :: arm64"
 	@GOOS=darwin GOARCH=arm64 go build -o bin/mastopost-darwin-arm64 cmd/mastopost/main.go
 	@printf " done.\n"
+	@printf "  building mastopost-lambda-rssxpost:\n"
+	@printf "    linux  :: arm64"
+	@GOOS=linux GOARCH=arm64 go build -o bin/mastopost-lambda-rssxpost/bootstrap lambda/mastopost-rssxpost/main.go
+	@printf " done.\n"
+	@printf "  zipping mastopost-lambda-rssxpost to bin/mastopost-lambda-rssxpost.zip:\n"
+	@zip -j bin/mastopost-lambda-rssxpost.zip bin/mastopost-lambda-rssxpost/bootstrap
+	@printf " done.\n"
 
 tidy:
 	@echo "Making mod tidy"
@@ -25,11 +32,7 @@ tidy:
 update:
 	@echo "Updating $(stack_name)"
 	@go get -u ./...
-	@go mod tidy
-
-lambda-build:
-	GOOS=linux GOARCH=arm64 go build -o bin/mastopost-lambda-rssxpost/bootstrap lambda/mastopost-rssxpost/main.go
-	zip -j bin/mastopost-lambda-rssxpost.zip bin/mastopost-lambda-rssxpost/bootstrap
+	@go mod tidy	
 
 prune:
 	@git gc --prune=now
