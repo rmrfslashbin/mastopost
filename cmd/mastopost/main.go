@@ -237,22 +237,23 @@ type CLI struct {
 	// Cfg commmand
 	Cfg CfgCmd `cmd:"" help:"Show Mastopost config details."`
 
-	// Job commands
-	Job struct {
-		Add    JobAddCmd    `cmd:"" help:"Add a new Mastopost job."`
-		Delete JobDeleteRmd `cmd:"" help:"Deletes a Mastopost job."`
-		List   JobListCmd   `cmd:"" help:"List Mastopost jobs."`
-		Status JobStatusCmd `cmd:"" help:"Show status of Mastopost jobs."`
-	} `cmd:"" help:"Manages jobs/events"`
+	RssXpost struct {
+		// Job commands
+		Job struct {
+			Add    JobAddCmd    `cmd:"" help:"Add a new Mastopost job."`
+			Delete JobDeleteRmd `cmd:"" help:"Deletes a Mastopost job."`
+			List   JobListCmd   `cmd:"" help:"List Mastopost jobs."`
+			Status JobStatusCmd `cmd:"" help:"Show status of Mastopost jobs."`
+		} `cmd:"" help:"Manages jobs/events"`
+		// Oneshot command
+		Oneshot OneshotCmd `cmd:"" help:"Run an RSS feed parser and post to Mastodon."`
+	} `cmd:"" help:"RSS cross-posting commands."`
 
 	// Lambda commands
 	Lambda struct {
 		Install   LambdaInstallCmd   `cmd:"" help:"Install a new Mastopost lambda function."`
 		Uninstall LambdaUninstallCmd `cmd:"" help:"Uninstall a Mastopost lambda function."`
 	} `cmd:"" help:"Manage the Lambda functions and events."`
-
-	// Oneshot command
-	Oneshot OneshotCmd `cmd:"" help:"Run an RSS feed parser and post to Mastodon."`
 }
 
 // main is the entry point for the CLI
