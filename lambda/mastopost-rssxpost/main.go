@@ -79,13 +79,15 @@ func handler(ctx context.Context, message Message) error {
 		}
 
 		for _, p := range opt.Parameters {
-			log.Info().
-				Str("name", *p.Name).
-				Str("value", *p.Value).
-				Str("modified", p.LastModifiedDate.String()).
-				Int64("version", p.Version).
-				Str("Arn", *p.ARN).
-				Msg("found parameter")
+			/*
+				log.Info().
+					Str("name", *p.Name).
+					Str("value", *p.Value).
+					Str("modified", p.LastModifiedDate.String()).
+					Int64("version", p.Version).
+					Str("Arn", *p.ARN).
+					Msg("found parameter")
+			*/
 			key := strings.TrimPrefix(*p.Name, path)
 			switch key {
 			case "mastodon/instanceUrl":
