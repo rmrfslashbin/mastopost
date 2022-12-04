@@ -2,8 +2,6 @@
 .PHONY: build
 
 stack_name = mastopost
-deploy_bucket = is-us-east-1-deployment
-aws_profile = default
 
 build:
 	@printf "  building mastopost-cli:\n"
@@ -29,16 +27,9 @@ update:
 	@go get -u ./...
 	@go mod tidy
 
-deploy: lambda-build
-	aws --profile $(aws_profile) cloudformation package --template-file aws-cloudformation/template.yaml --s3-bucket $(deploy_bucket) --output-template-file build/out.yaml
-	aws --profile $(aws_profile) cloudformation deploy --template-file build/out.yaml --s3-bucket $(deploy_bucket) --stack-name $(stack_name) --capabilities CAPABILITY_NAMED_IAM
-
 lambda-build:
 	GOOS=linux GOARCH=arm64 go build -o bin/mastopost-lambda-rssxpost/bootstrap lambda/mastopost-rssxpost/main.go
 	zip -j bin/mastopost-lambda-rssxpost.zip bin/mastopost-lambda-rssxpost/bootstrap
-
-cfdescribe:
-	aws --profile $(aws_profile) cloudformation describe-stack-events --stack-name $(stack_name)
 
 prune:
 	@git gc --prune=now
