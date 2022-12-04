@@ -59,6 +59,29 @@ func (r *CfgCmd) Run(ctx *Context) error {
 	return nil
 }
 
+/*
+// CalPostOneShotCmd is the command for posting a single calendar event
+type CalPostOneShotCmd struct {
+	DryRun   bool   `name:"dryrun" help:"Don't actually post to Mastodon."`
+	Feedname string `name:"feedname" env:"FEED_NAME" required:"" help:"Name of the feed to post."`
+}
+
+func (r *CalPostOneShotCmd) Run(ctx *Context) error {
+	// Set up a new oneshot struct
+	if foo, err := cpos.NewOneshot(
+		cpos.WithLogger(ctx.log),
+		cpos.WithConfigFile(ctx.configFile),
+		cpos.WithFeedName(&r.Feedname),
+		cpos.WithDryrun(r.DryRun),
+	); err != nil {
+		return err
+	} else {
+		// Run the oneshot
+		return foo.Run()
+	}
+}
+*/
+
 // RssXPostJobAddCmd adds a new job
 type RssXPostJobAddCmd struct {
 	AWSProfile         string `name:"profile" help:"AWS profile to use" default:"default"`
@@ -178,7 +201,6 @@ func (r *RssXPostOneshotCmd) Run(ctx *Context) error {
 		// Run the oneshot
 		return foo.Run()
 	}
-
 }
 
 // LambdaInstallCmd installs a new lambda function
@@ -249,6 +271,12 @@ type CLI struct {
 		Oneshot RssXPostOneshotCmd `cmd:"" help:"Run an RSS feed parser and post to Mastodon."`
 	} `cmd:"" help:"RSS cross-posting commands."`
 
+	/*
+		CalPost struct {
+			Oneshot CalPostOneShotCmd `cmd:"" help:"Run a calendar parser and post to Mastodon."`
+		} `cmd:"" help:"Calendar cross-posting commands."`
+	*/
+
 	// Lambda commands
 	Lambda struct {
 		Install   LambdaInstallCmd   `cmd:"" help:"Install a new Mastopost lambda function."`
@@ -317,5 +345,3 @@ func main() {
 	// FatalIfErrorf terminates with an error message if err != nil
 	ctx.FatalIfErrorf(err)
 }
-
-//webcal://p130-caldav.icloud.com/published/2/MTE3MDU2Nzk1MTgxMTcwNdjgpDxIRNlESQu67H6trgxZaxVRxDjc14CbWc9fc2omt8tvxOA-jjjASK9W4Wm6d-e3effKHGYdj2JVepocy7A
