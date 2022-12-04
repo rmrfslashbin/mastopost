@@ -187,6 +187,7 @@ type LambdaUninstallCmd struct {
 	AWSProfile   string `name:"profile" help:"AWS profile to use" default:"default"`
 	AWSRegion    string `name:"region" help:"AWS region to use" default:"us-east-1"`
 	FunctionName string `name:"functionname" required:"" help:"Lambda function name to use"`
+	Force        bool   `name:"force" default:"false" help:"Force uninstall (ignore errors)"`
 }
 
 // Run is the entry point for the lambda uninstall command
@@ -201,7 +202,7 @@ func (r *LambdaUninstallCmd) Run(ctx *Context) error {
 	if err != nil {
 		return err
 	}
-	return l.Uninstall()
+	return l.Uninstall(r.Force)
 }
 
 // OneshotCmd runs a single instance of the oneshot command to parse and post RSS feeds to Mastodon

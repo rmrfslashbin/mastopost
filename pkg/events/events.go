@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -425,6 +426,8 @@ func (e *EventPramsConfig) InstallLambdaFunction(input *InstallLambdaFunctionInp
 	}
 	e.log.Info().Msg("AWSLambdaBasicExecutionRole iam policy attached to role")
 
+	e.log.Info().Msg("Pausing 10 seconds to allow IAM role to propagate")
+	time.Sleep(10 * time.Second)
 	opt, err := e.lambda.CreateFunction(context.TODO(), &lambda.CreateFunctionInput{
 		Code: &lambdaTypes.FunctionCode{
 			ZipFile: zipfile,
@@ -459,6 +462,7 @@ func (e *EventPramsConfig) InstallLambdaFunction(input *InstallLambdaFunctionInp
 type UninstallLambdaFunctionInput struct {
 	FunctionArn *string
 	PolicyArn   *string
+	Force       *bool
 }
 
 func (e *EventPramsConfig) UninstallLambdaFunction(input *UninstallLambdaFunctionInput) error {
@@ -473,10 +477,14 @@ func (e *EventPramsConfig) UninstallLambdaFunction(input *UninstallLambdaFunctio
 	if _, err := e.lambda.DeleteFunction(context.TODO(), &lambda.DeleteFunctionInput{
 		FunctionName: input.FunctionArn,
 	}); err != nil {
-		return &DeleteFunctionError{Err: err}
+		if input.Force != nil && *input.Force {
+			e.log.Warn().Err(err).Msg("failed to delete lambda function")
+		} else {
+			return &DeleteFunctionError{Err: err}
+		}
+	} else {
+		e.log.Info().Msg("lambda function deleted")
 	}
-
-	e.log.Info().Msg("lambda function deleted")
 
 	var marker *string
 	var roleNames []string
@@ -493,7 +501,22 @@ func (e *EventPramsConfig) UninstallLambdaFunction(input *UninstallLambdaFunctio
 				PolicyArn: input.PolicyArn,
 				RoleName:  role.RoleName,
 			}); err != nil {
-				return err
+				if input.Force != nil && *input.Force {
+					e.log.Warn().Err(err).Msg("iam policy detach from role failed")
+				} else {
+					return err
+				}
+			}
+			// AWSLambdaBasicExecutionRole must be detatched "manually"
+			if _, err := e.iam.DetachRolePolicy(context.TODO(), &iam.DetachRolePolicyInput{
+				PolicyArn: aws.String("arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"),
+				RoleName:  role.RoleName,
+			}); err != nil {
+				if input.Force != nil && *input.Force {
+					e.log.Warn().Err(err).Msg("iam policy detach from AWSLambdaBasicExecutionRole failed")
+				} else {
+					return err
+				}
 			}
 			roleNames = append(roleNames, *role.RoleName)
 			e.log.Info().
@@ -512,22 +535,33 @@ func (e *EventPramsConfig) UninstallLambdaFunction(input *UninstallLambdaFunctio
 		if _, err := e.iam.DeleteRole(context.TODO(), &iam.DeleteRoleInput{
 			RoleName: &roleName,
 		}); err != nil {
-			return err
+			e.log.Warn().
+				Err(err).
+				Str("role name", roleName).
+				Msg("iam role delete failed")
+			if input.Force == nil || !*input.Force {
+				return err
+			}
+		} else {
+			e.log.Info().
+				Str("role name", roleName).
+				Msg("iam role deleted")
 		}
-		e.log.Info().
-			Str("role name", roleName).
-			Msg("iam role deleted")
 	}
 
 	if _, err := e.iam.DeletePolicy(context.TODO(), &iam.DeletePolicyInput{
 		PolicyArn: input.PolicyArn,
 	}); err != nil {
-		return &DeletePolicyError{Err: err}
+		if input.Force != nil && *input.Force {
+			e.log.Warn().Err(err).Msg("iam policy delete failed")
+		} else {
+			return &DeletePolicyError{Err: err}
+		}
+	} else {
+		e.log.Info().
+			Str("policy arn", *input.PolicyArn).
+			Msg("iam policy deleted")
 	}
-	e.log.Info().
-		Str("policy arn", *input.PolicyArn).
-		Msg("iam policy deleted")
-
 	return nil
 }
 

@@ -6,7 +6,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (l *LambdaConfig) Uninstall() error {
+func (l *LambdaConfig) Uninstall(force bool) error {
 	// Load the config file
 	cfg, err := config.NewConfig(*l.configFile)
 	if err != nil {
@@ -32,6 +32,7 @@ func (l *LambdaConfig) Uninstall() error {
 	if err := eb.UninstallLambdaFunction(&events.UninstallLambdaFunctionInput{
 		FunctionArn: &lambdaFunction.FunctionArn,
 		PolicyArn:   &lambdaFunction.PolicyArn,
+		Force:       &force,
 	}); err != nil {
 		log.Error().Msg("failed to uninstall lambda function")
 		return err

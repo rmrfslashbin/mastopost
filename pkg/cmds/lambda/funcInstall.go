@@ -32,5 +32,6 @@ func (l *LambdaConfig) Install() error {
 
 	fmt.Printf("function name: %s\n", opt.FunctionName)
 	fmt.Printf("function arn:  %s\n", opt.FunctionArn)
+	fmt.Printf("policy arn:    %s\n", opt.PolicyArn)
 	return nil
 }
