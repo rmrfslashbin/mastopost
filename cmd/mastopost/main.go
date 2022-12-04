@@ -59,8 +59,8 @@ func (r *CfgCmd) Run(ctx *Context) error {
 	return nil
 }
 
-// JobAddCmd adds a new job
-type JobAddCmd struct {
+// RssXPostJobAddCmd adds a new job
+type RssXPostJobAddCmd struct {
 	AWSProfile         string `name:"profile" help:"AWS profile to use" default:"default"`
 	AWSRegion          string `name:"region" help:"AWS region to use" default:"us-east-1"`
 	Confirm            bool   `name:"confirm" default:"false" help:"Confirm the job add (don't prompt for confirmation)"`
@@ -70,7 +70,7 @@ type JobAddCmd struct {
 }
 
 // Run is the entry point for the job add command
-func (r *JobAddCmd) Run(ctx *Context) error {
+func (r *RssXPostJobAddCmd) Run(ctx *Context) error {
 	l, err := lambda.NewLambda(
 		lambda.WithAWSProfile(&r.AWSProfile),
 		lambda.WithAWSRegion(&r.AWSRegion),
@@ -89,7 +89,7 @@ func (r *JobAddCmd) Run(ctx *Context) error {
 }
 
 // JobDeleteCmd deletes a feed job
-type JobDeleteRmd struct {
+type RssXPostJobDeleteRmd struct {
 	AWSProfile         string `name:"profile" help:"AWS profile to use" default:"default"`
 	AWSRegion          string `name:"region" help:"AWS region to use" default:"us-east-1"`
 	Confirm            bool   `name:"confirm" default:"false" help:"Confirm the job add (don't prompt for confirmation)"`
@@ -98,7 +98,7 @@ type JobDeleteRmd struct {
 }
 
 // Run is the entry point for the job delete command
-func (r *JobDeleteRmd) Run(ctx *Context) error {
+func (r *RssXPostJobDeleteRmd) Run(ctx *Context) error {
 	l, err := lambda.NewLambda(
 		lambda.WithAWSProfile(&r.AWSProfile),
 		lambda.WithAWSRegion(&r.AWSRegion),
@@ -113,15 +113,15 @@ func (r *JobDeleteRmd) Run(ctx *Context) error {
 	return l.Delete(r.Confirm)
 }
 
-// JobListCmd lists the jobs already set up
-type JobListCmd struct {
+// RssXPostJobListCmd lists the jobs already set up
+type RssXPostJobListCmd struct {
 	AWSProfile string  `name:"profile" help:"AWS profile to use" default:"default"`
 	AWSRegion  string  `name:"region" help:"AWS region to use" default:"us-east-1"`
 	FeedName   *string `name:"feedname" help:"Feed name to use"`
 }
 
 // Run is the entry point for the job list command
-func (r *JobListCmd) Run(ctx *Context) error {
+func (r *RssXPostJobListCmd) Run(ctx *Context) error {
 	l, err := lambda.NewLambda(
 		lambda.WithLogger(ctx.log),
 		lambda.WithAWSProfile(&r.AWSProfile),
@@ -134,8 +134,8 @@ func (r *JobListCmd) Run(ctx *Context) error {
 	return l.List()
 }
 
-// JobStatusCmd prints the status of a job
-type JobStatusCmd struct {
+// RssXPostJobStatusCmd prints the status of a job
+type RssXPostJobStatusCmd struct {
 	AWSProfile string `name:"profile" help:"AWS profile to use" default:"default"`
 	AWSRegion  string `name:"region" help:"AWS region to use" default:"us-east-1"`
 	FeedName   string `name:"feedname" required:"" help:"Feed name to use"`
@@ -144,7 +144,7 @@ type JobStatusCmd struct {
 }
 
 // Run is the entry point for the job status command
-func (r *JobStatusCmd) Run(ctx *Context) error {
+func (r *RssXPostJobStatusCmd) Run(ctx *Context) error {
 	l, err := lambda.NewLambda(
 		lambda.WithLogger(ctx.log),
 		lambda.WithAWSProfile(&r.AWSProfile),
@@ -156,6 +156,29 @@ func (r *JobStatusCmd) Run(ctx *Context) error {
 		return err
 	}
 	return l.Status(&lambda.StatusInput{Enable: r.Enable, Disable: r.Disable})
+}
+
+// RssXPostOneshotCmd runs a single instance of the oneshot command to parse and post RSS feeds to Mastodon
+type RssXPostOneshotCmd struct {
+	DryRun   bool   `name:"dryrun" help:"Don't actually post to Mastodon."`
+	Feedname string `name:"feedname" env:"FEED_NAME" required:"" help:"Name of the feed to post."`
+}
+
+// Run is the entry point for the oneshot command
+func (r *RssXPostOneshotCmd) Run(ctx *Context) error {
+	// Set up a new oneshot struct
+	if foo, err := oneshot.NewOneshot(
+		oneshot.WithLogger(ctx.log),
+		oneshot.WithConfigFile(ctx.configFile),
+		oneshot.WithFeedName(&r.Feedname),
+		oneshot.WithDryrun(r.DryRun),
+	); err != nil {
+		return err
+	} else {
+		// Run the oneshot
+		return foo.Run()
+	}
+
 }
 
 // LambdaInstallCmd installs a new lambda function
@@ -205,29 +228,6 @@ func (r *LambdaUninstallCmd) Run(ctx *Context) error {
 	return l.Uninstall(r.Force)
 }
 
-// OneshotCmd runs a single instance of the oneshot command to parse and post RSS feeds to Mastodon
-type OneshotCmd struct {
-	DryRun   bool   `name:"dryrun" help:"Don't actually post to Mastodon."`
-	Feedname string `name:"feedname" env:"FEED_NAME" required:"" help:"Name of the feed to post."`
-}
-
-// Run is the entry point for the oneshot command
-func (r *OneshotCmd) Run(ctx *Context) error {
-	// Set up a new oneshot struct
-	if foo, err := oneshot.NewOneshot(
-		oneshot.WithLogger(ctx.log),
-		oneshot.WithConfigFile(ctx.configFile),
-		oneshot.WithFeedName(&r.Feedname),
-		oneshot.WithDryrun(r.DryRun),
-	); err != nil {
-		return err
-	} else {
-		// Run the oneshot
-		return foo.Run()
-	}
-
-}
-
 // CLI is the main CLI struct
 type CLI struct {
 	// Global flags/args
@@ -240,14 +240,17 @@ type CLI struct {
 	RssXpost struct {
 		// Job commands
 		Job struct {
-			Add    JobAddCmd    `cmd:"" help:"Add a new Mastopost job."`
-			Delete JobDeleteRmd `cmd:"" help:"Deletes a Mastopost job."`
-			List   JobListCmd   `cmd:"" help:"List Mastopost jobs."`
-			Status JobStatusCmd `cmd:"" help:"Show status of Mastopost jobs."`
+			Add    RssXPostJobAddCmd    `cmd:"" help:"Add a new Mastopost job."`
+			Delete RssXPostJobDeleteRmd `cmd:"" help:"Deletes a Mastopost job."`
+			List   RssXPostJobListCmd   `cmd:"" help:"List Mastopost jobs."`
+			Status RssXPostJobStatusCmd `cmd:"" help:"Show status of Mastopost jobs."`
 		} `cmd:"" help:"Manages jobs/events"`
 		// Oneshot command
-		Oneshot OneshotCmd `cmd:"" help:"Run an RSS feed parser and post to Mastodon."`
+		Oneshot RssXPostOneshotCmd `cmd:"" help:"Run an RSS feed parser and post to Mastodon."`
 	} `cmd:"" help:"RSS cross-posting commands."`
+
+	CalPost struct {
+	} `cmd:"" help:"Calendar cross-posting commands."`
 
 	// Lambda commands
 	Lambda struct {
@@ -317,3 +320,5 @@ func main() {
 	// FatalIfErrorf terminates with an error message if err != nil
 	ctx.FatalIfErrorf(err)
 }
+
+//webcal://p130-caldav.icloud.com/published/2/MTE3MDU2Nzk1MTgxMTcwNdjgpDxIRNlESQu67H6trgxZaxVRxDjc14CbWc9fc2omt8tvxOA-jjjASK9W4Wm6d-e3effKHGYdj2JVepocy7A
