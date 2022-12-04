@@ -39,6 +39,24 @@ func (e *FileNotExist) Error() string {
 	return e.Msg
 }
 
+// FunctionNotFound is returned when a function is not found
+type FunctionNotFound struct {
+	Err          error
+	FunctionName string
+	Msg          string
+}
+
+// Error returns the error message
+func (e *FunctionNotFound) Error() string {
+	if e.Msg == "" {
+		e.Msg = "function not found"
+	}
+	if e.FunctionName != "" {
+		e.Msg += ": " + e.FunctionName
+	}
+	return e.Msg
+}
+
 // FeedConfig contains the configuration for a feed
 type FeedConfig struct {
 	// AccessToken is the Mastodon access token
@@ -71,6 +89,9 @@ type LambdaFunctionConfig struct {
 
 	// FunctionArn is the ARN (Amazon Resource Name) of the Lambda function
 	FunctionArn string `json:"functionArn"`
+
+	// PolicyArn is the ARN (Amazon Resource Name) of the IAM policy
+	PolicyArn string `json:"policyArn"`
 }
 
 // Config contains the configuration for mastopost
@@ -183,4 +204,17 @@ func (l *LastUpdates) Save() error {
 		return err
 	}
 	return nil
+}
+
+func (cfg *Config) GetFunction(functionName *string) (*LambdaFunctionConfig, error) {
+	if functionName == nil {
+		return nil, &FilenameRequired{}
+	}
+
+	// Check for lambda function ARN
+	if _, ok := cfg.LambdaFunctionConfig[*functionName]; !ok {
+		return nil, &FunctionNotFound{FunctionName: *functionName}
+	}
+	lambdaConfig := cfg.LambdaFunctionConfig[*functionName]
+	return &lambdaConfig, nil
 }

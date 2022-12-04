@@ -457,12 +457,12 @@ func (e *EventPramsConfig) InstallLambdaFunction(input *InstallLambdaFunctionInp
 }
 
 type UninstallLambdaFunctionInput struct {
-	FunctionNameArn *string
-	PolicyArn       *string
+	FunctionArn *string
+	PolicyArn   *string
 }
 
 func (e *EventPramsConfig) UninstallLambdaFunction(input *UninstallLambdaFunctionInput) error {
-	if input.FunctionNameArn == nil {
+	if input.FunctionArn == nil {
 		return &UninstallLambdaFunctionError{Msg: "function arn is required"}
 	}
 
@@ -470,15 +470,16 @@ func (e *EventPramsConfig) UninstallLambdaFunction(input *UninstallLambdaFunctio
 		return &UninstallLambdaFunctionError{Msg: "policy arn is required"}
 	}
 
-	// functionName := mastopost-rss-xpost-test
-
 	if _, err := e.lambda.DeleteFunction(context.TODO(), &lambda.DeleteFunctionInput{
-		FunctionName: input.FunctionNameArn,
+		FunctionName: input.FunctionArn,
 	}); err != nil {
 		return &DeleteFunctionError{Err: err}
 	}
 
+	e.log.Info().Msg("lambda function deleted")
+
 	var marker *string
+	var roleNames []string
 	for {
 		opt, err := e.iam.ListEntitiesForPolicy(context.TODO(), &iam.ListEntitiesForPolicyInput{
 			PolicyArn: input.PolicyArn,
@@ -494,11 +495,11 @@ func (e *EventPramsConfig) UninstallLambdaFunction(input *UninstallLambdaFunctio
 			}); err != nil {
 				return err
 			}
-			if _, err := e.iam.DeleteRole(context.TODO(), &iam.DeleteRoleInput{
-				RoleName: role.RoleName,
-			}); err != nil {
-				return err
-			}
+			roleNames = append(roleNames, *role.RoleName)
+			e.log.Info().
+				Str("role name", *role.RoleName).
+				Str("policy arn", *input.PolicyArn).
+				Msg("iam policy detached from role")
 		}
 
 		marker = opt.Marker
@@ -507,11 +508,25 @@ func (e *EventPramsConfig) UninstallLambdaFunction(input *UninstallLambdaFunctio
 		}
 	}
 
+	for _, roleName := range roleNames {
+		if _, err := e.iam.DeleteRole(context.TODO(), &iam.DeleteRoleInput{
+			RoleName: &roleName,
+		}); err != nil {
+			return err
+		}
+		e.log.Info().
+			Str("role name", roleName).
+			Msg("iam role deleted")
+	}
+
 	if _, err := e.iam.DeletePolicy(context.TODO(), &iam.DeletePolicyInput{
 		PolicyArn: input.PolicyArn,
 	}); err != nil {
 		return &DeletePolicyError{Err: err}
 	}
+	e.log.Info().
+		Str("policy arn", *input.PolicyArn).
+		Msg("iam policy deleted")
 
 	return nil
 }

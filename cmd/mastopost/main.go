@@ -184,12 +184,24 @@ func (r *LambdaInstallCmd) Run(ctx *Context) error {
 
 // LambdaUninstallCmd uninstalls a lambda function
 type LambdaUninstallCmd struct {
+	AWSProfile   string `name:"profile" help:"AWS profile to use" default:"default"`
+	AWSRegion    string `name:"region" help:"AWS region to use" default:"us-east-1"`
+	FunctionName string `name:"functionname" required:"" help:"Lambda function name to use"`
 }
 
 // Run is the entry point for the lambda uninstall command
 func (r *LambdaUninstallCmd) Run(ctx *Context) error {
-	fmt.Println("lambda uninstall: not yet implemented")
-	return nil
+	l, err := lambda.NewLambda(
+		lambda.WithLogger(ctx.log),
+		lambda.WithAWSProfile(&r.AWSProfile),
+		lambda.WithAWSRegion(&r.AWSRegion),
+		lambda.WithConfigFile(ctx.configFile),
+		lambda.WithLambdaFunctionName(&r.FunctionName),
+	)
+	if err != nil {
+		return err
+	}
+	return l.Uninstall()
 }
 
 // OneshotCmd runs a single instance of the oneshot command to parse and post RSS feeds to Mastodon

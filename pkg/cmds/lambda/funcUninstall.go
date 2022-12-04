@@ -1,14 +1,23 @@
 package lambda
 
 import (
-	"fmt"
-
+	"github.com/rmrfslashbin/mastopost/pkg/config"
 	"github.com/rmrfslashbin/mastopost/pkg/events"
 	"github.com/rs/zerolog/log"
 )
 
 func (l *LambdaConfig) Uninstall() error {
-	// TODO: code will force the function name to prefix with "mastopost-"
+	// Load the config file
+	cfg, err := config.NewConfig(*l.configFile)
+	if err != nil {
+		return &FeedLoadError{Err: err}
+	}
+
+	// Get function config data
+	lambdaFunction, err := cfg.GetFunction(l.lambdaFunctionName)
+	if err != nil {
+		return err
+	}
 
 	eb, err := events.New(
 		events.WithLogger(l.log),
@@ -18,19 +27,14 @@ func (l *LambdaConfig) Uninstall() error {
 	if err != nil {
 		log.Error().Msg("failed to create eventbridge client")
 		return err
-
 	}
 
-	opt, err := eb.InstallLambdaFunction(&events.InstallLambdaFunctionInput{
-		FunctionName:        l.lambdaFunctionName,
-		FunctionZipFilename: l.zipfilename,
-	})
-	if err != nil {
-		log.Error().Msg("failed to install lambda function")
+	if err := eb.UninstallLambdaFunction(&events.UninstallLambdaFunctionInput{
+		FunctionArn: &lambdaFunction.FunctionArn,
+		PolicyArn:   &lambdaFunction.PolicyArn,
+	}); err != nil {
+		log.Error().Msg("failed to uninstall lambda function")
 		return err
 	}
-
-	fmt.Printf("function name: %s\n", opt.FunctionName)
-	fmt.Printf("function arn:  %s\n", opt.FunctionArn)
 	return nil
 }
