@@ -1,13 +1,15 @@
 package cpos
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
+	"time"
 
 	ics "github.com/arran4/golang-ical"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/rmrfslashbin/mastopost/pkg/config"
 	"github.com/rs/zerolog"
 )
@@ -253,71 +255,56 @@ func (c *OneshotConfig) Run() error {
 		return &FeedLoadError{Err: err}
 	}
 
-	/*
-		for _, event := range cal.Events() {
-			descr := event.ComponentBase.GetProperty("DESCRIPTION")
-			sequence := event.ComponentBase.GetProperty("SEQUENCE")
-			summary := event.ComponentBase.GetProperty("SUMMARY")
-			uid := event.ComponentBase.GetProperty("UID")
+	for _, event := range cal.Events() {
+		descr := strings.Replace(event.ComponentBase.GetProperty("DESCRIPTION").Value, `\n`, "\n", -1)
+		sequence := event.ComponentBase.GetProperty("SEQUENCE").Value
+		summary := event.ComponentBase.GetProperty("SUMMARY").Value
+		uid := event.ComponentBase.GetProperty("UID").Value
 
-			createDate, err := time.Parse(TSTAMP_FORMAT, event.ComponentBase.GetProperty("CREATED").Value)
-			if err != nil {
-				return err
-			}
-
-			endDate, err := time.Parse(TSTAMP_SIMPLE_FORMAT, event.ComponentBase.GetProperty("DTEND").Value)
-			if err != nil {
-				return err
-			}
-
-			if _, ok := event.ComponentBase.GetProperty("DTEND").ICalParameters["TZID"]; !ok {
-				return errors.New("DTEND does not have a TZID")
-			}
-			endDateTZ := event.ComponentBase.GetProperty("DTSTART").ICalParameters["TZID"][0]
-
-			dtStamp, err := time.Parse(TSTAMP_FORMAT, event.ComponentBase.GetProperty("DTSTAMP").Value)
-			if err != nil {
-				return err
-			}
-
-			startDate, err := time.Parse(TSTAMP_SIMPLE_FORMAT, event.ComponentBase.GetProperty("DTSTART").Value)
-			if err != nil {
-				return err
-			}
-
-			if _, ok := event.ComponentBase.GetProperty("DTSTART").ICalParameters["TZID"]; !ok {
-				return errors.New("DTSTART does not have a TZID")
-			}
-			startDateTZ := event.ComponentBase.GetProperty("DTSTART").ICalParameters["TZID"][0]
-
-			lastModified, err := time.Parse(TSTAMP_FORMAT, event.ComponentBase.GetProperty("LAST-MODIFIED").Value)
-			if err != nil {
-				return err
-			}
-
-			fmt.Printf("Description:    %s\n", descr.Value)
-			fmt.Printf("Created:        %s\n", createDate.Format(time.RFC3339))
-			fmt.Printf("End Date:       %s %s\n", endDate.Format(time.RFC3339), endDateTZ)
-			fmt.Printf("DT Stamp:       %s\n", dtStamp.Format(time.RFC3339))
-			fmt.Printf("Start Date:     %s %s\n", startDate.Format(time.RFC3339), startDateTZ)
-			fmt.Printf("Last Modified:  %s\n", lastModified.Format(time.RFC3339))
-			fmt.Printf("Sequence:       %s\n", sequence.Value)
-			fmt.Printf("Summary:        %s\n", summary.Value)
-			fmt.Printf("UID:            %s\n", uid.Value)
+		createDate, err := time.Parse(TSTAMP_FORMAT, event.ComponentBase.GetProperty("CREATED").Value)
+		if err != nil {
+			return err
 		}
-	*/
 
-	/*
-		for _, props := range cal.CalendarProperties {
-			spew.Dump(props)
+		endDate, err := time.Parse(TSTAMP_SIMPLE_FORMAT, event.ComponentBase.GetProperty("DTEND").Value)
+		if err != nil {
+			return err
 		}
-	*/
 
-	for _, component := range cal.Components {
-		fmt.Println("**** START ****")
-		spew.Dump(component)
+		if _, ok := event.ComponentBase.GetProperty("DTEND").ICalParameters["TZID"]; !ok {
+			return errors.New("DTEND does not have a TZID")
+		}
+		endDateTZ := event.ComponentBase.GetProperty("DTSTART").ICalParameters["TZID"][0]
 
-		fmt.Println("**** END ****\n\n")
+		dtStamp, err := time.Parse(TSTAMP_FORMAT, event.ComponentBase.GetProperty("DTSTAMP").Value)
+		if err != nil {
+			return err
+		}
+
+		startDate, err := time.Parse(TSTAMP_SIMPLE_FORMAT, event.ComponentBase.GetProperty("DTSTART").Value)
+		if err != nil {
+			return err
+		}
+
+		if _, ok := event.ComponentBase.GetProperty("DTSTART").ICalParameters["TZID"]; !ok {
+			return errors.New("DTSTART does not have a TZID")
+		}
+		startDateTZ := event.ComponentBase.GetProperty("DTSTART").ICalParameters["TZID"][0]
+
+		lastModified, err := time.Parse(TSTAMP_FORMAT, event.ComponentBase.GetProperty("LAST-MODIFIED").Value)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Description:    %s\n", descr)
+		fmt.Printf("Created:        %s\n", createDate.Format(time.RFC3339))
+		fmt.Printf("End Date:       %s %s\n", endDate.Format(time.RFC3339), endDateTZ)
+		fmt.Printf("DT Stamp:       %s\n", dtStamp.Format(time.RFC3339))
+		fmt.Printf("Start Date:     %s %s\n", startDate.Format(time.RFC3339), startDateTZ)
+		fmt.Printf("Last Modified:  %s\n", lastModified.Format(time.RFC3339))
+		fmt.Printf("Sequence:       %s\n", sequence)
+		fmt.Printf("Summary:        %s\n", summary)
+		fmt.Printf("UID:            %s\n", uid)
 	}
 
 	return nil
