@@ -299,6 +299,57 @@ func (e *InstallLambdaFunctionError) Error() string {
 	return e.Msg
 }
 
+// DeleteFunctionError is an error that occurs when the lambda function cannot be deleted.
+type DeleteFunctionError struct {
+	Err error
+	Msg string
+}
+
+// Error returns the error message.
+func (e *DeleteFunctionError) Error() string {
+	if e.Msg == "" {
+		e.Msg = "error deleting lambda function"
+	}
+	if e.Err != nil {
+		e.Msg += ": " + e.Err.Error()
+	}
+	return e.Msg
+}
+
+// DeletePolicyError is an error that occurs when the lambda policy cannot be deleted.
+type DeletePolicyError struct {
+	Err error
+	Msg string
+}
+
+// Error returns the error message.
+func (e *DeletePolicyError) Error() string {
+	if e.Msg == "" {
+		e.Msg = "error deleting policy"
+	}
+	if e.Err != nil {
+		e.Msg += ": " + e.Err.Error()
+	}
+	return e.Msg
+}
+
+// UninstallLambdaFunctionError is an error that occurs when the lambda function cannot be uninstalled.
+type UninstallLambdaFunctionError struct {
+	Err error
+	Msg string
+}
+
+// Error returns the error message.
+func (e *UninstallLambdaFunctionError) Error() string {
+	if e.Msg == "" {
+		e.Msg = "error uninstalling lambda function"
+	}
+	if e.Err != nil {
+		e.Msg += ": " + e.Err.Error()
+	}
+	return e.Msg
+}
+
 type InstallLambdaFunctionInput struct {
 	FunctionZipFilename *string
 	FunctionName        *string
@@ -307,6 +358,7 @@ type InstallLambdaFunctionInput struct {
 type InstallLambdaFunctionOutput struct {
 	FunctionArn  string
 	FunctionName string
+	PolicyArn    string
 }
 
 func (e *EventPramsConfig) InstallLambdaFunction(input *InstallLambdaFunctionInput) (*InstallLambdaFunctionOutput, error) {
@@ -327,6 +379,9 @@ func (e *EventPramsConfig) InstallLambdaFunction(input *InstallLambdaFunctionInp
 	if err != nil {
 		return nil, &ReadLambdaZipError{Err: err}
 	}
+	e.log.Info().
+		Str("zip file name", *input.FunctionZipFilename).
+		Msg("lambda zip file read")
 
 	roleName := "role-mastopost-lambda-" + *input.FunctionName
 	role, err := e.iam.CreateRole(context.TODO(), &iam.CreateRoleInput{
@@ -337,6 +392,9 @@ func (e *EventPramsConfig) InstallLambdaFunction(input *InstallLambdaFunctionInp
 	if err != nil {
 		return nil, &CreateRoleError{Err: err}
 	}
+	e.log.Info().
+		Str("role name", roleName).
+		Msg("iam role created")
 
 	policy, err := e.iam.CreatePolicy(context.TODO(), &iam.CreatePolicyInput{
 		Description:    aws.String("Policy for mastopost lambda function: " + *input.FunctionName),
@@ -347,12 +405,17 @@ func (e *EventPramsConfig) InstallLambdaFunction(input *InstallLambdaFunctionInp
 		return nil, &CreatePolicyError{Err: err}
 	}
 
+	e.log.Info().
+		Str("policy arn", *policy.Policy.Arn).
+		Msg("iam policy created")
+
 	if _, err := e.iam.AttachRolePolicy(context.TODO(), &iam.AttachRolePolicyInput{
 		PolicyArn: policy.Policy.Arn,
 		RoleName:  aws.String(roleName),
 	}); err != nil {
 		return nil, &AttachRolePolicyError{Err: err}
 	}
+	e.log.Info().Msg("iam policy attached to role")
 
 	if _, err := e.iam.AttachRolePolicy(context.TODO(), &iam.AttachRolePolicyInput{
 		PolicyArn: aws.String("arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"),
@@ -360,6 +423,7 @@ func (e *EventPramsConfig) InstallLambdaFunction(input *InstallLambdaFunctionInp
 	}); err != nil {
 		return nil, &AttachRolePolicyError{Err: err}
 	}
+	e.log.Info().Msg("AWSLambdaBasicExecutionRole iam policy attached to role")
 
 	opt, err := e.lambda.CreateFunction(context.TODO(), &lambda.CreateFunctionInput{
 		Code: &lambdaTypes.FunctionCode{
@@ -380,11 +444,76 @@ func (e *EventPramsConfig) InstallLambdaFunction(input *InstallLambdaFunctionInp
 	if err != nil {
 		return nil, &CreateFunctionError{Err: err}
 	}
+	e.log.Info().
+		Str("function name", *opt.FunctionName).
+		Str("function arn", *opt.FunctionArn).
+		Msg("lambda function created")
 
 	return &InstallLambdaFunctionOutput{
 		FunctionArn:  *opt.FunctionArn,
 		FunctionName: *opt.FunctionName,
+		PolicyArn:    *policy.Policy.Arn,
 	}, nil
+}
+
+type UninstallLambdaFunctionInput struct {
+	FunctionNameArn *string
+	PolicyArn       *string
+}
+
+func (e *EventPramsConfig) UninstallLambdaFunction(input *UninstallLambdaFunctionInput) error {
+	if input.FunctionNameArn == nil {
+		return &UninstallLambdaFunctionError{Msg: "function arn is required"}
+	}
+
+	if input.PolicyArn == nil {
+		return &UninstallLambdaFunctionError{Msg: "policy arn is required"}
+	}
+
+	// functionName := mastopost-rss-xpost-test
+
+	if _, err := e.lambda.DeleteFunction(context.TODO(), &lambda.DeleteFunctionInput{
+		FunctionName: input.FunctionNameArn,
+	}); err != nil {
+		return &DeleteFunctionError{Err: err}
+	}
+
+	var marker *string
+	for {
+		opt, err := e.iam.ListEntitiesForPolicy(context.TODO(), &iam.ListEntitiesForPolicyInput{
+			PolicyArn: input.PolicyArn,
+			Marker:    marker,
+		})
+		if err != nil {
+			return err
+		}
+		for _, role := range opt.PolicyRoles {
+			if _, err := e.iam.DetachRolePolicy(context.TODO(), &iam.DetachRolePolicyInput{
+				PolicyArn: input.PolicyArn,
+				RoleName:  role.RoleName,
+			}); err != nil {
+				return err
+			}
+			if _, err := e.iam.DeleteRole(context.TODO(), &iam.DeleteRoleInput{
+				RoleName: role.RoleName,
+			}); err != nil {
+				return err
+			}
+		}
+
+		marker = opt.Marker
+		if marker == nil {
+			break
+		}
+	}
+
+	if _, err := e.iam.DeletePolicy(context.TODO(), &iam.DeletePolicyInput{
+		PolicyArn: input.PolicyArn,
+	}); err != nil {
+		return &DeletePolicyError{Err: err}
+	}
+
+	return nil
 }
 
 func (e *EventPramsConfig) PutRule(newEvent *NewEvent) (RuleArn, error) {
